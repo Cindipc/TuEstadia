@@ -32,7 +32,6 @@ migrate_working_dir/
 .pub/
 /build/
 /coverage/
-/CODEOWNERS
 
 # Symbolication related
 app.*.symbols
