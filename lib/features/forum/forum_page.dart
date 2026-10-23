@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../app_theme.dart';
+import '../../core/auth_service.dart';
+import '../../core/firebase_bootstrap.dart';
 import '../../core/models/forum_post.dart';
 import '../../core/repositories/forum_repository.dart';
 import '../../core/widgets/app_avatar.dart';
@@ -54,8 +56,8 @@ class _ForumPageState extends State<ForumPage> {
           padding: const EdgeInsets.only(left: 14),
           child: Center(
             child: AppAvatar(
-              imageUrl: 'https://i.pravatar.cc/120?img=45',
-              name: 'Tu Estadia',
+              imageUrl: AuthService.photoUrl ?? '',
+              name: AuthService.displayName,
               size: 34,
               borderColor: AppColors.neoCyan.withValues(alpha: 0.6),
               borderWidth: 1.5,
@@ -109,8 +111,30 @@ class _ForumPageState extends State<ForumPage> {
                 return _ThreadItem(
                   post: post,
                   isLast: index == posts.length - 1,
-                  onLike: () => _repository.toggleLike(post),
-                  onSave: () => _repository.toggleSave(post),
+                  onLike: () async {
+                    final ok = await _repository.toggleLike(post);
+                    if (!mounted) return;
+                    if (!ok) {
+                      _showMessage(
+                        FirebaseBootstrap.isAvailable
+                            ? 'No se pudo dar like. Revisa tu sesión y las '
+                                  'reglas de Firestore.'
+                            : 'Modo demo: los cambios no se guardan.',
+                      );
+                    }
+                  },
+                  onSave: () async {
+                    final ok = await _repository.toggleSave(post);
+                    if (!mounted) return;
+                    if (!ok) {
+                      _showMessage(
+                        FirebaseBootstrap.isAvailable
+                            ? 'No se pudo guardar. Revisa tu sesión y las '
+                                  'reglas de Firestore.'
+                            : 'Modo demo: los cambios no se guardan.',
+                      );
+                    }
+                  },
                   onReply: () => _showMessage('Respondiendo a ${post.authorName}'),
                 );
               },

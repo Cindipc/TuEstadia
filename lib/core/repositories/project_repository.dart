@@ -24,7 +24,7 @@ class ProjectRepository {
     if (!FirebaseBootstrap.isAvailable) {
       return Stream.value(DemoData.projects);
     }
-    return withFallback(
+    return withDemoFallback(
       _collection
           .orderBy('createdAt', descending: true)
           .snapshots()
@@ -38,28 +38,40 @@ class ProjectRepository {
   }
 
   /// Alterna el estado "guardado" de un proyecto.
-  Future<void> toggleSave(ProjectModel project) async {
-    if (!FirebaseBootstrap.isAvailable) return;
-    await _collection.doc(project.id).update({'saved': !project.saved});
+  ///
+  /// Devuelve `true` si el cambio se escribió en Firestore.
+  Future<bool> toggleSave(ProjectModel project) async {
+    if (!FirebaseBootstrap.isAvailable) return false;
+    try {
+      await _collection.doc(project.id).update({'saved': !project.saved});
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Crea un proyecto nuevo.
-  Future<void> create({
+  Future<bool> create({
     required String title,
     required String tech,
     required String imageUrl,
     required String authorName,
     required String authorAvatar,
   }) async {
-    if (!FirebaseBootstrap.isAvailable) return;
-    await _collection.add({
-      'title': title,
-      'tech': tech,
-      'imageUrl': imageUrl,
-      'authorName': authorName,
-      'authorAvatar': authorAvatar,
-      'saved': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    if (!FirebaseBootstrap.isAvailable) return false;
+    try {
+      await _collection.add({
+        'title': title,
+        'tech': tech,
+        'imageUrl': imageUrl,
+        'authorName': authorName,
+        'authorAvatar': authorAvatar,
+        'saved': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }

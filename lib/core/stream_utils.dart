@@ -11,3 +11,14 @@ Stream<T> withFallback<T>(Stream<T> source, T fallback) {
     ),
   );
 }
+
+/// Igual que [withFallback], pero también usa el respaldo cuando la colección
+/// está vacía (proyecto recién creado, sin datos sembrados todavía).
+Stream<List<T>> withDemoFallback<T>(Stream<List<T>> source, List<T> fallback) {
+  return source.transform(
+    StreamTransformer<List<T>, List<T>>.fromHandlers(
+      handleData: (data, sink) => sink.add(data.isEmpty ? fallback : data),
+      handleError: (error, stackTrace, sink) => sink.add(fallback),
+    ),
+  );
+}

@@ -5,8 +5,8 @@ import '../firebase_options.dart';
 /// Arranque de Firebase.
 ///
 /// La app nunca se cae por culpa de Firebase: si las credenciales no están
-/// configuradas (o la plataforma no soporta Firebase, como Linux), la app
-/// sigue funcionando en **modo demo** con los datos de `DemoData`.
+/// configuradas, la inicialización falla o la plataforma no está soportada
+/// (Linux), la app sigue funcionando en **modo demo** con `DemoData`.
 class FirebaseBootstrap {
   FirebaseBootstrap._();
 
@@ -17,28 +17,29 @@ class FirebaseBootstrap {
   /// `true` si Firebase quedó inicializado correctamente.
   static bool get isAvailable => _available;
 
-  /// `true` si hay credenciales reales configuradas.
-  static bool get hasCredentials => DefaultFirebaseOptions.isConfigured;
-
   /// Mensaje de error si la inicialización falló.
   static String? get error => _error;
+
+  /// Proyecto de Firebase configurado (por ejemplo `fwitter-7596d`).
+  static String? get projectId {
+    if (!_available) return null;
+    try {
+      return Firebase.app().options.projectId;
+    } catch (_) {
+      return null;
+    }
+  }
 
   static Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
-
-    if (!DefaultFirebaseOptions.isConfigured) {
-      _error =
-          'No hay credenciales de Firebase configuradas. '
-          'Edita lib/firebase_options.dart o ejecuta `flutterfire configure`.';
-      return;
-    }
 
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
       _available = true;
+      _error = null;
     } catch (e) {
       _available = false;
       _error = e.toString();

@@ -1,61 +1,57 @@
 # Configuración de Firebase — TuEstadia
 
-Toda la capa de datos está implementada en `lib/core/`. Este documento explica
-cómo conectar el proyecto con tu proyecto de Firebase.
+Proyecto conectado: **`fwitter-7596d`**
+
+La configuración ya está aplicada en `lib/firebase_options.dart` (generada por
+FlutterFire CLI). No hace falta pegar credenciales.
 
 ---
 
-## 1. Crear el proyecto en Firebase
+## Estado verificado del proyecto
 
-1. Entra en <https://console.firebase.google.com> y crea un proyecto (o usa el
-   que ya tienes).
-2. Ve a **Build → Firestore Database** y crea la base de datos en modo
-   *production*.
-3. Ve a **Build → Authentication → Sign-in method** y activa **Email/Password**.
-4. Registra las apps que vas a compilar:
-   - Android: package `com.example.tuestadia`
-   - iOS / macOS: bundle id `com.example.tuestadia`
-   - Web: id de app web
+| Comprobación | Resultado |
+|---|---|
+| API key (REST) | ✅ válida |
+| Firestore Database | ✅ existe |
+| Auth → Email/Password | ✅ habilitado (`INVALID_LOGIN_CREDENTIALS`, no `OPERATION_NOT_ALLOWED`) |
+| Reglas de Firestore | ⚠️ **deniegan lectura anónima (403)** — hay que publicarlas |
 
 ---
 
-## 2. Pegar las credenciales
+## 1. Publicar las reglas de Firestore  ⚠️ obligatorio
 
-### Opción A — `flutterfire configure` (recomendada)
+Sin esto, la app seguirá mostrando datos demo porque Firestore rechaza las
+lecturas.
 
-```bash
-dart pub global activate flutterfire_cli
-flutterfire configure
-```
+1. Abre el archivo [`firestore.rules`](firestore.rules) del repo.
+2. En la consola: **Firestore Database → Rules** → pega el contenido →
+   **Publish**.
 
-Elige tu proyecto y las plataformas. El comando **sobrescribe**
-`lib/firebase_options.dart` con los valores reales.
+Resumen de las reglas:
 
-### Opción B — Manual
-
-Abre `lib/firebase_options.dart` y reemplaza los valores `PLACEHOLDER_*` por
-los que aparecen en la consola de Firebase:
-
-```dart
-static const String _apiKey    = 'AIza...';
-static const String _appId     = '1:123456789:web:abc123';
-static const String _projectId = 'mi-proyecto';
-// ...
-```
-
-### Opción C — Variables de entorno / CI
-
-```bash
-flutter run --dart-define=FIREBASE_API_KEY=AIza... \
-            --dart-define=FIREBASE_APP_ID=1:123456789:web:abc123 \
-            --dart-define=FIREBASE_PROJECT_ID=mi-proyecto \
-            --dart-define=FIREBASE_MESSAGING_SENDER_ID=123456789 \
-            --dart-define=FIREBASE_WEB_APP_ID=1:123456789:web:abc123
-```
+- Lectura pública de `projects`, `courses`, `chapters`, `posts` y `profiles`.
+- Escritura solo con sesión iniciada.
+- Cada usuario solo escribe su propio documento en `profiles`.
 
 ---
 
-## 3. Colecciones y documentos esperados
+## 2. Sembrar datos de prueba
+
+Con las reglas publicadas y una sesión iniciada:
+
+1. Entra a la app y regístrate o inicia sesión.
+2. Ve a **Perfil → “Cargar datos de prueba en Firestore”**.
+
+Esto crea los documentos de `lib/core/demo_data.dart` en Firestore (solo si las
+colecciones están vacías). Después, la app deja de usar el respaldo demo y lee
+directamente de la base de datos.
+
+Alternativa: crear los documentos a mano desde la consola con los campos de la
+tabla de abajo.
+
+---
+
+## 3. Colecciones y campos
 
 | Colección | Campos |
 |---|---|
@@ -63,76 +59,68 @@ flutter run --dart-define=FIREBASE_API_KEY=AIza... \
 | `courses` | `title`, `subtitle`, `iconKey`, `colorValue`, `gradientStart`, `gradientEnd` |
 | `chapters` | `courseId`, `title`, `chapterNumber`, `progress` |
 | `posts` | `authorName`, `authorAvatar`, `question`, `code`, `likes`, `replies`, `saved`, `createdAt` |
-| `profiles` | `displayName`, `email`, `photoUrl`, `bio` |
+| `profiles` | `displayName`, `email`, `photoUrl`, `bio`, `updatedAt` |
 
-Los repositorios (`lib/core/repositories/`) leen esas colecciones con
-`StreamBuilder`, así que cualquier cambio en Firestore se refleja en pantalla
-sin recargar.
-
-### Script de ejemplo (Node.js) para poblar la base
-
-```js
-// scripts/seed.js  ->  node scripts/seed.js
-const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
-
-initializeApp({ credential: admin.credential.cert(require('./serviceAccount.json')) });
-const db = getFirestore();
-
-async function seed() {
-  await db.collection('projects').add({
-    title: 'UI Clone in Flutter',
-    tech: 'Flutter',
-    imageUrl: 'https://picsum.photos/seed/1/480/320',
-    authorName: 'Carla Méndez',
-    authorAvatar: 'https://i.pravatar.cc/120?img=12',
-    saved: false,
-    createdAt: new Date(),
-  });
-}
-seed();
-```
+`iconKey` admite: `python`, `flutter`, `database`, `git`, `algorithm`, `code`.
 
 ---
 
-## 4. Modo demo (sin Firebase)
+## 4. Autenticación
 
-Si las credenciales no están configuradas, la app **no se rompe**: entra en
-*modo demo* y muestra los datos de `lib/core/demo_data.dart`. En el login
-aparece el enlace **“Explorar en modo demo”**.
+El login usa **Firebase Auth con email y contraseña**:
 
-Esto también cubre la plataforma **Linux**, donde Firebase no está soportado.
+- **Ingresar** → `signInWithEmailAndPassword`
+- **Regístrate** → `createUserWithEmailAndPassword` + documento en `profiles`
+- **¿Olvidaste tu contraseña?** → `sendPasswordResetEmail`
+- **Cerrar sesión** (Perfil) → `signOut`
+- Modo demo disponible cuando Firebase no está disponible.
+
+El botón de Google muestra un aviso: requiere configurar el proveedor OAuth
+(Google) en Firebase Authentication y un `google-services.json` /
+`GoogleService-Info.plist` con los SHA-1 registrados.
 
 ---
 
 ## 5. Notas por plataforma
 
-- **Android / iOS / Web**: no necesitas `google-services.json` ni
-  `GoogleService-Info.plist` mientras pases las opciones desde Dart
-  (`Firebase.initializeApp(options: ...)`). Si prefieres usar esos archivos,
-  añade el plugin de Google Services y el de Firebase iOS.
-- **Windows / macOS**: requieren `FlutterFire CLI` instalado y los plugins
-  nativos ya habilitados por Flutter.
-- **Linux**: `firebase_core` no tiene soporte; la app corre en modo demo.
+| Plataforma | Estado |
+|---|---|
+| **Web** | ✅ funciona con la config actual |
+| **Windows** | ✅ usa la app web del proyecto |
+| **Android** | ⚠️ el `applicationId` de la app es `com.example.tuestadia`; debe coincidir con una app Android registrada en el proyecto `fwitter-7596d` |
+| **iOS / macOS** | ⚠️ el bundle del Runner es `com.example.tuestadia`, pero la config trae `iosBundleId: com.example.fwitterReborn`. Registra una app iOS/macOS con `com.example.tuestadia` o cambia el bundle del proyecto |
+| **Linux** | ❌ Firebase no soportado; la app corre en modo demo |
+
+Para registrar una app nueva: **Project settings → Your apps → Add app**.
 
 ---
 
-## 6. Structure del código
+## 6. Modo demo
+
+Si no hay conexión, las reglas bloquean la lectura o la plataforma no soporta
+Firebase, la app **no se rompe**: usa `lib/core/demo_data.dart` y muestra el
+aviso de modo demo. Los cambios (guardar, like, publicar) no se persisten.
+
+---
+
+## 7. Estructura del código
 
 ```text
 lib/
-├── firebase_options.dart          # Credenciales (generado por FlutterFire CLI)
+├── firebase_options.dart          # Credenciales (FlutterFire CLI)
 ├── core/
-│   ├── firebase_bootstrap.dart    # Inicialización segura + modo demo
+│   ├── firebase_bootstrap.dart    # Inicialización + fallback a demo
+│   ├── auth_service.dart          # Login, registro, reset, logout
+│   ├── seed_service.dart          # Sembrado de datos en Firestore
 │   ├── demo_data.dart             # Datos de prueba
-│   ├── stream_utils.dart          # Fallback de streams
-│   ├── models/                    # Project, Course, Chapter, ForumPost
-│   ├── repositories/              # Project, Library, Forum
-│   └── widgets/                   # AppAvatar, NetworkCover
+│   ├── stream_utils.dart          # Fallback de streams (vacío/error)
+│   ├── models/
+│   ├── repositories/
+│   └── widgets/
 └── features/
-    ├── feed/home_page.dart        # Home - Feed (Plan.md)
-    ├── library/library_page.dart  # Biblioteca (Plan.md)
-    ├── forum/forum_page.dart      # Foro de Dudas (Plan.md)
-    ├── profile/profile_page.dart
+    ├── feed/home_page.dart        # Home - Feed
+    ├── library/library_page.dart  # Biblioteca
+    ├── forum/forum_page.dart      # Foro de Dudas
+    ├── profile/profile_page.dart  # Perfil + estado de Firestore + seed
     └── shell/main_shell.dart      # Navegación inferior
 ```

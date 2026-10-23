@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app_theme.dart';
+import '../../core/firebase_bootstrap.dart';
 import '../../core/models/project.dart';
 import '../../core/repositories/project_repository.dart';
 import 'widgets/project_card.dart';
@@ -198,8 +199,17 @@ class _HomePageState extends State<HomePage> {
                         project: project,
                         onTap: () => _showMessage(project.title),
                         onToggleSave: () async {
-                          await _repository.toggleSave(project);
+                          final saved = await _repository.toggleSave(project);
                           if (!context.mounted) return;
+                          if (!saved) {
+                            _showMessage(
+                              FirebaseBootstrap.isAvailable
+                                  ? 'No se pudo guardar. Revisa tu sesión y las '
+                                        'reglas de Firestore.'
+                                  : 'Modo demo: los cambios no se guardan.',
+                            );
+                            return;
+                          }
                           _showMessage(
                             project.saved
                                 ? 'Quitado de guardados'

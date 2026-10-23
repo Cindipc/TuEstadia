@@ -24,7 +24,7 @@ class ForumRepository {
     if (!FirebaseBootstrap.isAvailable) {
       return Stream.value(DemoData.posts);
     }
-    return withFallback(
+    return withDemoFallback(
       _collection
           .orderBy('createdAt', descending: true)
           .snapshots()
@@ -38,34 +38,49 @@ class ForumRepository {
   }
 
   /// Alterna el "like" de una publicación.
-  Future<void> toggleLike(ForumPostModel post) async {
-    if (!FirebaseBootstrap.isAvailable) return;
-    await _collection.doc(post.id).update({'likes': post.likes + 1});
+  Future<bool> toggleLike(ForumPostModel post) async {
+    if (!FirebaseBootstrap.isAvailable) return false;
+    try {
+      await _collection.doc(post.id).update({'likes': post.likes + 1});
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Alterna el estado "guardado" de una publicación.
-  Future<void> toggleSave(ForumPostModel post) async {
-    if (!FirebaseBootstrap.isAvailable) return;
-    await _collection.doc(post.id).update({'saved': !post.saved});
+  Future<bool> toggleSave(ForumPostModel post) async {
+    if (!FirebaseBootstrap.isAvailable) return false;
+    try {
+      await _collection.doc(post.id).update({'saved': !post.saved});
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Crea una publicación nueva en el foro.
-  Future<void> createPost({
+  Future<bool> createPost({
     required String question,
     required String code,
     required String authorName,
     required String authorAvatar,
   }) async {
-    if (!FirebaseBootstrap.isAvailable) return;
-    await _collection.add({
-      'authorName': authorName,
-      'authorAvatar': authorAvatar,
-      'question': question,
-      'code': code,
-      'likes': 0,
-      'replies': 0,
-      'saved': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    if (!FirebaseBootstrap.isAvailable) return false;
+    try {
+      await _collection.add({
+        'authorName': authorName,
+        'authorAvatar': authorAvatar,
+        'question': question,
+        'code': code,
+        'likes': 0,
+        'replies': 0,
+        'saved': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }

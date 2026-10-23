@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// Reglas de Firestore para TuEstadia.
+//
+// Lectura pública del contenido (feed, biblioteca y foro) y escritura solo para
+// usuarios autenticados. El perfil solo lo puede escribir su dueño.
+//
+// Para aplicarlas:
+//   Firebase Console > Firestore Database > Rules > pega este contenido > Publish
+// (o `firebase deploy --only firestore:rules` si usas Firebase CLI).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Contenido de solo lectura pública, escritura autenticada.
+    match /projects/{projectId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /chapters/{chapterId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /posts/{postId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Cada usuario administra su propio perfil.
+    match /profiles/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

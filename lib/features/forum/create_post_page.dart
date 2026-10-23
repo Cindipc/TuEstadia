@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app_theme.dart';
+import '../../core/auth_service.dart';
 import '../../core/repositories/forum_repository.dart';
 
 /// Pantalla para crear una publicación en el foro.
@@ -37,14 +38,28 @@ class _CreatePostPageState extends State<CreatePostPage> {
     }
 
     setState(() => _sending = true);
-    await _repository.createPost(
+    final created = await _repository.createPost(
       question: question,
       code: _codeController.text.trim(),
-      authorName: 'Tu Estadia',
-      authorAvatar: 'https://i.pravatar.cc/120?img=45',
+      authorName: AuthService.displayName,
+      authorAvatar: AuthService.photoUrl ?? '',
     );
     if (!mounted) return;
     setState(() => _sending = false);
+
+    if (!created) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo publicar: revisa tu sesión y las reglas de Firestore.',
+            ),
+          ),
+        );
+      return;
+    }
+
     Navigator.of(context).pop(true);
   }
 

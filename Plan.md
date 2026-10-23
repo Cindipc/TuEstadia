@@ -73,32 +73,38 @@ AppColors.neoSurfaceAlt  // #0F172A  Bloques de código
 
 ---
 
-# Configuración de credenciales de Firebase
+# Conexión con Firebase (aplicada)
 
-> **Pega aquí las credenciales** de tu proyecto de Firebase (o usa
-> `flutterfire configure`, que regenera `lib/firebase_options.dart`).
+Credenciales generadas por FlutterFire CLI e integradas en
+`lib/firebase_options.dart`:
 
 ```text
-FIREBASE_API_KEY              =
-FIREBASE_APP_ID               =
-FIREBASE_MESSAGING_SENDER_ID  =
-FIREBASE_PROJECT_ID           =
-FIREBASE_AUTH_DOMAIN          =
-FIREBASE_STORAGE_BUCKET       =
-FIREBASE_WEB_APP_ID           =
-FIREBASE_IOS_BUNDLE_ID        = com.example.tuestadia
-FIREBASE_MACOS_BUNDLE_ID      = com.example.tuestadia
+Proyecto:  fwitter-7596d
+Web:       appId 1:855255390470:web:1c87c1dcd619da04d96687
+Windows:   appId 1:855255390470:web:79dabb59b77c379fd96687
+Android:   appId 1:855255390470:android:fd5485521ce5f320d96687
+iOS/macOS: appId 1:855255390470:ios:0b9a70427a519a6cd96687
+           (bundle registrado en la consola: com.example.fwitterReborn)
 ```
 
-Estas mismas claves se pueden inyectar sin tocar código:
+> ⚠️ Las reglas de Firestore del proyecto **deniegan la lectura anónima**.
+> Publica [`firestore.rules`](firestore.rules) en la consola para que la app lea
+> datos reales. Mientras tanto se muestran los datos demo.
 
-```bash
-flutter run --dart-define=FIREBASE_API_KEY=... --dart-define=FIREBASE_PROJECT_ID=...
-```
+## Login funcional
 
-Mientras las credenciales no estén pegadas, la app arranca en **modo demo**
-con datos de prueba (`lib/core/demo_data.dart`) y el enlace
-**“Explorar en modo demo”** en el login.
+| Acción | Implementación |
+|---|---|
+| Ingresar | `AuthService.signIn` → `signInWithEmailAndPassword` |
+| Registrarse | `AuthService.register` → crea usuario + documento en `profiles` |
+| ¿Olvidaste tu contraseña? | `sendPasswordResetEmail` |
+| Cerrar sesión | `signOut` desde Perfil |
+| Modo demo | Solo si Firebase no está disponible |
+
+## Sembrado de datos
+
+**Perfil → “Cargar datos de prueba en Firestore”** copia `DemoData` a las
+colecciones `projects`, `courses`, `chapters` y `posts` (solo si están vacías).
 
 ## Colecciones en Firestore
 
@@ -108,6 +114,6 @@ con datos de prueba (`lib/core/demo_data.dart`) y el enlace
 | `courses` | `title`, `subtitle`, `iconKey`, `colorValue`, `gradientStart`, `gradientEnd` |
 | `chapters` | `courseId`, `title`, `chapterNumber`, `progress` |
 | `posts` | `authorName`, `authorAvatar`, `question`, `code`, `likes`, `replies`, `saved`, `createdAt` |
-| `profiles` | `displayName`, `email`, `photoUrl`, `bio` |
+| `profiles` | `displayName`, `email`, `photoUrl`, `bio`, `updatedAt` |
 
 Guía completa de conexión: `FIREBASE_SETUP.md`.

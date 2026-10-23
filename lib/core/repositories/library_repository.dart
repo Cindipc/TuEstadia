@@ -29,7 +29,7 @@ class LibraryRepository {
     if (!FirebaseBootstrap.isAvailable) {
       return Stream.value(DemoData.courses);
     }
-    return withFallback(
+    return withDemoFallback(
       _courses.snapshots().map(
         (snapshot) => snapshot.docs.map(CourseModel.fromDoc).toList(
           growable: false,
@@ -44,7 +44,7 @@ class LibraryRepository {
     if (!FirebaseBootstrap.isAvailable) {
       return Stream.value(DemoData.chapters);
     }
-    return withFallback(
+    return withDemoFallback(
       _chapters
           .orderBy('chapterNumber')
           .snapshots()
@@ -58,8 +58,13 @@ class LibraryRepository {
   }
 
   /// Marca un capítulo como leído (progreso 1.0).
-  Future<void> markChapterCompleted(ChapterModel chapter) async {
-    if (!FirebaseBootstrap.isAvailable) return;
-    await _chapters.doc(chapter.id).update({'progress': 1});
+  Future<bool> markChapterCompleted(ChapterModel chapter) async {
+    if (!FirebaseBootstrap.isAvailable) return false;
+    try {
+      await _chapters.doc(chapter.id).update({'progress': 1});
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }
