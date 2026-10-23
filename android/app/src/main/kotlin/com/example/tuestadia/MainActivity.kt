@@ -1,4 +1,4 @@
-package com.example.codeshare
+package com.example.tuestadia
 
 import io.flutter.embedding.android.FlutterActivity
 
