@@ -1,11 +1,11 @@
 {
-    "name": "codeshare",
-    "short_name": "codeshare",
+    "name": "TuEstadia",
+    "short_name": "TuEstadia",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "TuEstadia es una app para aprender programacion en comunidad, con un feed de proyectos, una biblioteca y un espacio para resolver dudas.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

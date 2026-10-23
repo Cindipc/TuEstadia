@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "codeshare" "\0"
+            VALUE "FileDescription", "TuEstadia" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "codeshare" "\0"
+            VALUE "InternalName", "tu_estadia" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
-            VALUE "OriginalFilename", "codeshare.exe" "\0"
-            VALUE "ProductName", "codeshare" "\0"
+            VALUE "OriginalFilename", "tu_estadia.exe" "\0"
+            VALUE "ProductName", "TuEstadia" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

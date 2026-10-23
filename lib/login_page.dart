@@ -1,9 +1,14 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
+import 'core/firebase_bootstrap.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, this.onAuthenticated});
+
+  /// Se invoca cuando el usuario inicia sesión (o entra en modo demo).
+  final VoidCallback? onAuthenticated;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -35,20 +40,99 @@ class _LoginPageState extends State<LoginPage> {
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
 
-    await Future<void>.delayed(const Duration(milliseconds: 1400));
+    if (!FirebaseBootstrap.isAvailable) {
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showMessage(
+        'Firebase no está configurado. Entra en modo demo para explorar la app.',
+      );
+      return;
+    }
 
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-    _showMessage('La autenticación todavía no está disponible en esta versión.');
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      widget.onAuthenticated?.call();
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showMessage(_authErrorMessage(e));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showMessage('No se pudo iniciar sesión: $e');
+    }
+  }
+
+  Future<void> _onRegisterPressed() async {
+    if (_isLoading) return;
+    final form = _formKey.currentState;
+    if (form == null || !form.validate()) return;
+
+    if (!FirebaseBootstrap.isAvailable) {
+      _showMessage(
+        'Firebase no está configurado. Entra en modo demo para explorar la app.',
+      );
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      widget.onAuthenticated?.call();
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showMessage(_authErrorMessage(e));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      _showMessage('No se pudo crear la cuenta: $e');
+    }
+  }
+
+  void _onDemoPressed() {
+    if (_isLoading) return;
+    widget.onAuthenticated?.call();
   }
 
   void _onGooglePressed() {
     if (_isLoading) return;
-    _showMessage('El inicio de sesión con Google todavía no está configurado.');
+    _showMessage(
+      'El inicio de sesión con Google requiere configurar el proveedor OAuth '
+      'en Firebase Authentication.',
+    );
   }
 
-  void _onRegisterPressed() {
-    _showMessage('La creación de cuentas todavía no está disponible.');
+  String _authErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-email':
+        return 'El correo electrónico no es válido.';
+      case 'user-not-found':
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Correo o contraseña incorrectos.';
+      case 'email-already-in-use':
+        return 'Ese correo ya tiene una cuenta.';
+      case 'weak-password':
+        return 'La contraseña debe tener al menos 6 caracteres.';
+      case 'network-request-failed':
+        return 'Sin conexión con Firebase. Revisa tu red.';
+      default:
+        return e.message ?? 'Ocurrió un error al iniciar sesión.';
+    }
   }
 
   void _showMessage(String message) {
@@ -242,7 +326,7 @@ class _LoginPageState extends State<LoginPage> {
         ),
         const SizedBox(width: 10),
         const Text(
-          'CodeShare',
+          'TuEstadia',
           style: TextStyle(
             color: Colors.white,
             fontSize: 21,
@@ -405,36 +489,52 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildRegisterLink() {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: _onRegisterPressed,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          child: Text.rich(
-            TextSpan(
-              style: const TextStyle(
-                color: AppColors.muted,
-                fontSize: 14.5,
-                fontWeight: FontWeight.w500,
-                height: 1.4,
-              ),
-              children: const [
-                TextSpan(text: '¿No tienes cuenta? '),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: _onRegisterPressed,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+              child: Text.rich(
                 TextSpan(
-                  text: 'Regístrate',
-                  style: TextStyle(
-                    color: AppColors.cyan,
-                    fontWeight: FontWeight.w700,
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
                   ),
+                  children: const [
+                    TextSpan(text: '¿No tienes cuenta? '),
+                    TextSpan(
+                      text: 'Regístrate',
+                      style: TextStyle(
+                        color: AppColors.cyan,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+                textAlign: TextAlign.center,
+              ),
             ),
-            textAlign: TextAlign.center,
           ),
         ),
-      ),
+        TextButton(
+          onPressed: _onDemoPressed,
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.placeholder,
+            textStyle: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          child: const Text('Explorar en modo demo'),
+        ),
+      ],
     );
   }
 }
