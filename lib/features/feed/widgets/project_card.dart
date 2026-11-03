@@ -5,18 +5,28 @@ import '../../../core/models/project.dart';
 import '../../../core/widgets/app_avatar.dart';
 import '../../../core/widgets/network_cover.dart';
 
-/// Tarjeta de proyecto del feed principal.
+/// Tarjeta de proyecto del feed principal (estilo Pinterest).
 class ProjectCard extends StatelessWidget {
   const ProjectCard({
     super.key,
     required this.project,
     required this.onTap,
     required this.onToggleSave,
+    this.imageHeight,
   });
 
   final ProjectModel project;
   final VoidCallback onTap;
   final VoidCallback onToggleSave;
+
+  /// Altura de la imagen. Si es null, se elige una variada de forma estable
+  /// a partir del título para lograr el efecto de cascada.
+  final double? imageHeight;
+
+  static const List<double> _heights = [170, 220, 260, 195, 240, 280];
+
+  double get _resolvedHeight =>
+      imageHeight ?? _heights[project.title.hashCode.abs() % _heights.length];
 
   @override
   Widget build(BuildContext context) {
@@ -26,72 +36,79 @@ class ProjectCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: NetworkCover(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Imagen grande a todo el ancho, con overlays.
+            Stack(
+              children: [
+                NetworkCover(
                   imageUrl: project.imageUrl,
-                  height: 96,
+                  height: _resolvedHeight,
                   icon: _iconForTech(project.tech),
                 ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                project.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  height: 1.25,
+                // Etiqueta de tecnología abajo a la izquierda.
+                Positioned(
+                  left: 8,
+                  bottom: 8,
+                  child: _TechLabel(tech: project.tech),
                 ),
-              ),
-              const SizedBox(height: 6),
-              _TechLabel(tech: project.tech),
-              const Spacer(),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  AppAvatar(
-                    imageUrl: project.authorAvatar,
-                    name: project.authorName,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      project.authorName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.neoTextMuted,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const Text(
-                    'Save',
-                    style: TextStyle(
-                      color: AppColors.neoTextMuted,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  _BookmarkButton(
+                // Botón guardar arriba a la derecha.
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: _BookmarkButton(
                     saved: project.saved,
                     onPressed: onToggleSave,
                   ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    project.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      height: 1.25,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      AppAvatar(
+                        imageUrl: project.authorAvatar,
+                        name: project.authorName,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          project.authorName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.neoTextMuted,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -131,10 +148,10 @@ class _TechLabel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.neoCyan.withValues(alpha: 0.12),
+        color: Colors.black.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppColors.neoCyan.withValues(alpha: 0.35),
+          color: AppColors.neoCyan.withValues(alpha: 0.5),
         ),
       ),
       child: Text(
@@ -160,13 +177,20 @@ class _BookmarkButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkResponse(
-      onTap: onPressed,
-      radius: 20,
-      child: Icon(
-        saved ? Icons.bookmark : Icons.bookmark_border,
-        size: 19,
-        color: saved ? AppColors.neoEmerald : AppColors.neoTextMuted,
+    return Material(
+      color: Colors.black.withValues(alpha: 0.5),
+      shape: const CircleBorder(),
+      child: InkResponse(
+        onTap: onPressed,
+        radius: 22,
+        child: Padding(
+          padding: const EdgeInsets.all(7),
+          child: Icon(
+            saved ? Icons.bookmark : Icons.bookmark_border,
+            size: 19,
+            color: saved ? AppColors.neoEmerald : Colors.white,
+          ),
+        ),
       ),
     );
   }
