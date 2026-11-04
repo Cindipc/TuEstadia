@@ -7,7 +7,7 @@ TuEstadia es una app para aprender programación en comunidad, con un feed de pr
 | Pantalla | Descripción |
 |---|---|
 | **Home - Feed** | Buscador + filtros, carrusel de chips por tecnología y grilla de 2 columnas con tarjetas de proyecto. |
-| **Biblioteca** | Carrusel de cursos y línea de tiempo de capítulos (nodos + línea vertical con `CustomPainter`). |
+| **Biblioteca** | Sección **Proyectos** con el contenido de una carpeta pública de Google Drive. |
 | **Foro de Dudas** | Hilos de preguntas con línea de tiempo, bloque de código con resaltado de sintaxis y barra de acciones. |
 | **Perfil** | Datos del usuario, estadísticas y cierre de sesión. |
 
@@ -70,6 +70,41 @@ flutter run -d windows
 
 Detalles y esquema de colecciones: [`FIREBASE_SETUP.md`](FIREBASE_SETUP.md) y
 [`Plan.md`](Plan.md).
+
+## Google Drive (Proyectos)
+
+La sección **Proyectos** de la Biblioteca lista, en modo solo lectura, el
+contenido de una carpeta pública de Google Drive mediante la API v3.
+
+La API key y el ID de la carpeta se leen en tiempo de compilación, nunca desde
+el código. Crea un `dart_defines.json` local (ya está en `.gitignore`) copiando
+`dart_defines.example.json` y rellena:
+
+```json
+{
+  "GOOGLE_DRIVE_API_KEY": "TU_API_KEY",
+  "GOOGLE_DRIVE_FOLDER_ID": "TU_FOLDER_ID"
+}
+```
+
+Después ejecuta la app con ese archivo:
+
+```bash
+flutter run --dart-define-from-file=dart_defines.json
+```
+
+En VS Code también puedes usar la configuración **TuEstadia (con Google Drive)**
+del panel *Run and Debug*. Como alternativa, pasa los valores directo:
+
+```bash
+flutter run --dart-define=GOOGLE_DRIVE_API_KEY=TU_API_KEY --dart-define=GOOGLE_DRIVE_FOLDER_ID=TU_FOLDER_ID
+```
+
+La carpeta debe ser accesible sin iniciar sesión: en Google Drive, clic derecho
+sobre la carpeta → **Compartir** → **Acceso general** → **Cualquier persona con
+el enlace** → **Lector**. Una API key por sí sola no da acceso a carpetas
+privadas. Además, la API de Google Drive debe estar habilitada en el proyecto de
+Google Cloud y la clave debe permitir la API de Drive.
 
 ## Comandos
 
