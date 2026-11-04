@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../app_theme.dart';
 import '../../core/firebase_bootstrap.dart';
@@ -182,16 +183,16 @@ class _HomePageState extends State<HomePage> {
                     return _EmptyState(onReset: _resetFilters);
                   }
 
-                  return GridView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                  // Grid tipo Pinterest: columnas con alturas distintas.
+                  return MasonryGridView.builder(
+                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
                     physics: const BouncingScrollPhysics(),
                     gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
+                        const SliverSimpleGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 14,
-                          childAspectRatio: 0.66,
                         ),
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
                     itemCount: projects.length,
                     itemBuilder: (context, index) {
                       final project = projects[index];
