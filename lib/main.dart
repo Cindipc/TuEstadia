@@ -2,8 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
+import 'core/auth_config.dart';
 import 'core/auth_service.dart';
 import 'core/firebase_bootstrap.dart';
+import 'features/auth/email_verification_page.dart';
 import 'features/shell/main_shell.dart';
 import 'login_page.dart';
 
@@ -51,7 +53,7 @@ class _AuthGateState extends State<_AuthGate> {
     }
 
     if (!FirebaseBootstrap.isAvailable) {
-      return LoginPage(onAuthenticated: () => setState(() => _demoMode = true));
+      return LoginPage(onDemoMode: () => setState(() => _demoMode = true));
     }
 
     return StreamBuilder<User?>(
@@ -68,7 +70,22 @@ class _AuthGateState extends State<_AuthGate> {
         final user = snapshot.data;
         if (user == null) {
           return LoginPage(
-            onAuthenticated: () => setState(() => _demoMode = true),
+            onDemoMode: () => setState(() => _demoMode = true),
+          );
+        }
+
+        // Se lee la instancia actual (no solo la del stream) porque tras
+        // `user.reload()` el objeto del snapshot puede seguir desactualizado.
+        final currentUser = AuthService.currentUser ?? user;
+
+        if (AuthConfig.requireEmailVerification &&
+            !currentUser.emailVerified) {
+          return EmailVerificationPage(
+            email: currentUser.email ?? 'tu correo',
+            onVerified: () => setState(() {}),
+            onSignOut: () async {
+              await AuthService.signOut();
+            },
           );
         }
 

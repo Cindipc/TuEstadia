@@ -7,8 +7,13 @@ TuEstadia es una app para aprender programación en comunidad, con un feed de pr
 | Pantalla | Descripción |
 |---|---|
 | **Home - Feed** | Buscador + filtros, carrusel de chips por tecnología y grilla de 2 columnas con tarjetas de proyecto. |
+<<<<<<< Updated upstream
 | **Biblioteca** | Sección **Proyectos** con el contenido de una carpeta pública de Google Drive. |
 | **Foro de Dudas** | Hilos de preguntas con línea de tiempo, bloque de código con resaltado de sintaxis y barra de acciones. |
+=======
+| **Biblioteca** | Carrusel de cursos y línea de tiempo de capítulos (nodos + línea vertical con `CustomPainter`). |
+| **Foro de Dudas** | Estilo Twitter: hilos con respuestas, likes por usuario, imágenes/vídeos/GIF (Cloudinary), encuestas, búsqueda con pestañas, tendencias calculadas y borrado de publicaciones propias. |
+>>>>>>> Stashed changes
 | **Perfil** | Datos del usuario, estadísticas y cierre de sesión. |
 
 Todas las pantallas usan el tema **Neo-Dark** (`#121826` / `#1E293B` / `#38BDF8` / `#34D399`).
@@ -22,7 +27,9 @@ lib/
 ├── firebase_options.dart         # Credenciales de Firebase
 ├── core/
 │   ├── firebase_bootstrap.dart   # Inicialización segura + modo demo
-│   ├── auth_service.dart         # Login, registro, reset, logout
+│   ├── auth_service.dart         # Login, registro, reset, logout, verificación
+│   ├── auth_config.dart          # Flag de verificación de correo
+│   ├── auth_error_messages.dart  # Errores de Auth en español
 │   ├── seed_service.dart         # Sembrado de datos en Firestore
 │   ├── demo_data.dart            # Datos de prueba
 │   ├── stream_utils.dart         # Fallback de streams (vacío/error)
@@ -30,9 +37,13 @@ lib/
 │   ├── repositories/             # Project, Library, Forum
 │   └── widgets/                  # AppAvatar, NetworkCover
 └── features/
+    ├── auth/                     # Registro + verificación de correo
     ├── feed/home_page.dart
     ├── library/library_page.dart
-    ├── forum/forum_page.dart
+    ├── forum/
+    │   ├── forum_page.dart       # Recientes / Tendencias / Sin responder
+    │   ├── screens/              # Composer, detalle, búsqueda, tendencias, filtros
+    │   └── widgets/              # Tarjetas, media, encuesta, composer bar
     ├── profile/profile_page.dart
     └── shell/main_shell.dart
 ```
@@ -46,12 +57,22 @@ La capa de datos usa **Cloud Firestore** con `StreamBuilder`, así que los
 cambios se reflejan en pantalla sin recargar. **Firebase Auth** (email y
 contraseña) alimenta la pantalla de login:
 
+El foro guarda las respuestas en la misma colección `posts` con `parentPostId`
+(y así se muestran en el hilo), y los likes como `likedBy` + contador `likes`
+por usuario. La autoría se vincula con `profiles/{uid}`. Las imágenes, vídeos y
+GIF se suben a **Cloudinary** (cloud `xnnb3pfg`, preset `fwitter_preset`).
+
 | Acción | Implementación |
 |---|---|
 | Ingresar | `signInWithEmailAndPassword` |
-| Registrarse | `createUserWithEmailAndPassword` + documento en `profiles` |
+| Registrarse | `RegisterPage` (nombre, correo, contraseña y confirmación) → `createUserWithEmailAndPassword` + documento en `profiles` |
 | Recuperar contraseña | `sendPasswordResetEmail` |
 | Cerrar sesión | `signOut` desde el perfil |
+
+El registro es inmediato: **no se pide confirmar el correo**. El flujo de
+verificación ya está implementado en `lib/features/auth/email_verification_page.dart`
+y se activa con `AuthConfig.requireEmailVerification` o con
+`--dart-define=TUESTADIA_REQUIRE_EMAIL_VERIFICATION=true`.
 
 Si Firestore no responde (sin conexión, sin reglas o colecciones vacías), la app
 sigue funcionando con los datos de `lib/core/demo_data.dart` y lo avisa en el

@@ -17,7 +17,7 @@ class CodeBlock extends StatelessWidget {
     fontFamilyFallback: ['Consolas', 'Courier New'],
     fontSize: 12.5,
     height: 1.5,
-    color: Color(0xFFCBD5E1),
+    color: AppColors.neoCodeText,
   );
 
   static const Set<String> _keywords = {

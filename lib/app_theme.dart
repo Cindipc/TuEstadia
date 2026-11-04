@@ -20,6 +20,8 @@ class AppColors {
   static const neoEmerald = Color(0xFF34D399); // Acento secundario (éxito)
   static const neoBorder = Color(0xFF2A3648); // Bordes sutiles
   static const neoTextMuted = Color(0xFF8A97AD); // Texto secundario
+  static const neoLike = Color(0xFFF472B6); // Like del foro
+  static const neoCodeText = Color(0xFFCBD5E1); // Texto de bloques de código
 
   // Pantalla de login
   static const exterior = Color(0xFFF1F5F9); // Gris muy claro del entorno

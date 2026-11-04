@@ -167,7 +167,7 @@ class DemoData {
   }
 }''',
       likes: 24,
-      replies: 6,
+      replies: 2,
       saved: false,
       createdAt: DateTime.now().subtract(const Duration(minutes: 129)),
     ),
@@ -190,7 +190,7 @@ class DemoData {
   },
 )''',
       likes: 41,
-      replies: 12,
+      replies: 1,
       saved: true,
       createdAt: DateTime.now().subtract(const Duration(hours: 3)),
     ),
@@ -212,7 +212,7 @@ class DemoData {
   }
 }''',
       likes: 12,
-      replies: 3,
+      replies: 0,
       saved: false,
       createdAt: DateTime.now().subtract(const Duration(hours: 8)),
     ),
@@ -235,9 +235,52 @@ class DemoData {
   }
 }''',
       likes: 33,
-      replies: 9,
+      replies: 0,
       saved: true,
       createdAt: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
+    ),
+    // ── Respuestas de ejemplo (misma colección, parentPostId) ──────────────
+    ForumPostModel(
+      id: 'demo-reply-1',
+      authorName: 'Luis Paredes',
+      authorAvatar: _avatar(33),
+      question:
+          'El error está en las comillas dobles dentro del string de Dart. '
+          'Puedes usar comillas simples o escapar el carácter.',
+      code: '''print('Numero par: \$i');''',
+      likes: 7,
+      replies: 0,
+      saved: false,
+      parentPostId: 'demo-post-1',
+      createdAt: DateTime.now().subtract(const Duration(minutes: 100)),
+    ),
+    ForumPostModel(
+      id: 'demo-reply-2',
+      authorName: 'Carla Méndez',
+      authorAvatar: _avatar(12),
+      question: '¡Gracias! Era justo eso, ya compila sin errores.',
+      code: '',
+      likes: 2,
+      replies: 0,
+      saved: false,
+      parentPostId: 'demo-post-1',
+      createdAt: DateTime.now().subtract(const Duration(minutes: 64)),
+    ),
+    ForumPostModel(
+      id: 'demo-reply-3',
+      authorName: 'Valeria Núñez',
+      authorAvatar: _avatar(45),
+      question:
+          'Separa la carga en un `Future` del `initState` y usa `hasData` antes '
+          'de construir la lista; así evitas el parpadeo del `waiting`.',
+      code: '',
+      likes: 12,
+      replies: 0,
+      saved: true,
+      parentPostId: 'demo-post-2',
+      createdAt: DateTime.now().subtract(
+        const Duration(hours: 2, minutes: 35),
+      ),
     ),
   ];
 }

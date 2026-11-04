@@ -28,5 +28,11 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>TuEstadia necesita acceso a tus fotos para adjuntarlas a las publicaciones del foro.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>TuEstadia necesita la cámara para tomar fotos y adjuntarlas a tus publicaciones.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>TuEstadia necesita el micrófono para grabar vídeos con audio en el foro.</string>
 </dict>
 </plist>
