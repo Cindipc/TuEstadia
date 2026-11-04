@@ -18,9 +18,7 @@ Widget wrap(Widget child) {
 }
 
 void main() {
-  testWidgets('La app arranca en modo demo y muestra el login', (
-    tester,
-  ) async {
+  testWidgets('La app arranca en modo demo y muestra el login', (tester) async {
     tester.view.physicalSize = const Size(420, 1000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -100,7 +98,7 @@ void main() {
     expect(find.text('Bot de Discord en Python'), findsOneWidget);
   });
 
-  testWidgets('Biblioteca: carrusel de cursos y línea de tiempo', (
+  testWidgets('Biblioteca: sección de proyectos de Google Drive', (
     tester,
   ) async {
     await tester.pumpWidget(wrap(const LibraryPage()));
@@ -109,16 +107,12 @@ void main() {
 
     expect(find.text('Biblioteca'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_back), findsOneWidget);
-    expect(find.byIcon(Icons.menu_book), findsOneWidget);
+    expect(find.byTooltip('Actualizar proyectos'), findsOneWidget);
 
-    // Carrusel superior
-    expect(find.text('Python desde Cero'), findsWidgets);
-
-    // Sección de capítulos
-    expect(find.text('Chapters'), findsOneWidget);
-    expect(find.text('Chapter: 1'), findsWidgets);
-    expect(find.text('Continuar leyendo'), findsWidgets);
-    expect(find.byType(CustomPaint), findsWidgets);
+    // Sección de proyectos
+    expect(find.text('Proyectos'), findsOneWidget);
+    expect(find.text('Buscar proyectos'), findsOneWidget);
+    expect(find.byIcon(Icons.folder_copy_rounded), findsOneWidget);
   });
 
   testWidgets('Foro de Dudas: posts, código y barra de acciones', (
@@ -152,7 +146,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.text('Chapters'), findsOneWidget);
+    expect(find.text('Buscar proyectos'), findsOneWidget);
 
     await tester.tap(find.text('Foro'));
     await tester.pump();
