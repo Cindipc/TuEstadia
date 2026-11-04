@@ -2,14 +2,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'app_theme.dart';
+import 'core/auth_error_messages.dart';
 import 'core/auth_service.dart';
 import 'core/firebase_bootstrap.dart';
+import 'features/auth/auth_ui.dart';
+import 'features/auth/register_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, this.onAuthenticated});
+  const LoginPage({super.key, this.onDemoMode});
 
-  /// Se invoca cuando el usuario inicia sesión (o entra en modo demo).
-  final VoidCallback? onAuthenticated;
+  /// Se invoca cuando el usuario elige explorar en modo demo.
+  ///
+  /// El inicio de sesión real no usa este callback: lo detecta el `_AuthGate`
+  /// a través de `AuthService.authStateChanges()`.
+  final VoidCallback? onDemoMode;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -59,11 +65,10 @@ class _LoginPageState extends State<LoginPage> {
       );
       if (!mounted) return;
       setState(() => _isLoading = false);
-      widget.onAuthenticated?.call();
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
-      _showMessage(_authErrorMessage(e));
+      _showMessage(authErrorMessage(e));
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -71,39 +76,12 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  Future<void> _onRegisterPressed() async {
+  Future<void> _openRegister() async {
     if (_isLoading) return;
-    final form = _formKey.currentState;
-    if (form == null || !form.validate()) return;
-
-    if (!AuthService.isAvailable) {
-      _showMessage(
-        'Firebase no está configurado. Entra en modo demo para explorar la app.',
-      );
-      return;
-    }
-
     FocusScope.of(context).unfocus();
-    setState(() => _isLoading = true);
-
-    try {
-      await AuthService.register(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      _showMessage('Cuenta creada. ¡Bienvenido a TuEstadia!');
-      widget.onAuthenticated?.call();
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      _showMessage(_authErrorMessage(e));
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      _showMessage('No se pudo crear la cuenta: $e');
-    }
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const RegisterPage()),
+    );
   }
 
   Future<void> _onForgotPassword() async {
@@ -129,7 +107,7 @@ class _LoginPageState extends State<LoginPage> {
       _showMessage('Te enviamos un enlace de recuperación a $email.');
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      _showMessage(_authErrorMessage(e));
+      _showMessage(authErrorMessage(e));
     } catch (e) {
       if (!mounted) return;
       _showMessage('No se pudo enviar el correo: $e');
@@ -138,7 +116,7 @@ class _LoginPageState extends State<LoginPage> {
 
   void _onDemoPressed() {
     if (_isLoading) return;
-    widget.onAuthenticated?.call();
+    widget.onDemoMode?.call();
   }
 
   void _onGooglePressed() {
@@ -147,25 +125,6 @@ class _LoginPageState extends State<LoginPage> {
       'El inicio de sesión con Google requiere configurar el proveedor OAuth '
       'en Firebase Authentication.',
     );
-  }
-
-  String _authErrorMessage(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'invalid-email':
-        return 'El correo electrónico no es válido.';
-      case 'user-not-found':
-      case 'wrong-password':
-      case 'invalid-credential':
-        return 'Correo o contraseña incorrectos.';
-      case 'email-already-in-use':
-        return 'Ese correo ya tiene una cuenta.';
-      case 'weak-password':
-        return 'La contraseña debe tener al menos 6 caracteres.';
-      case 'network-request-failed':
-        return 'Sin conexión con Firebase. Revisa tu red.';
-      default:
-        return e.message ?? 'Ocurrió un error al iniciar sesión.';
-    }
   }
 
   void _showMessage(String message) {
@@ -193,39 +152,7 @@ class _LoginPageState extends State<LoginPage> {
     required IconData icon,
     required String hint,
   }) {
-    const radius = BorderRadius.all(Radius.circular(14));
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: AppColors.placeholder, fontSize: 15),
-      prefixIcon: Icon(icon, size: 20),
-      prefixIconColor: AppColors.placeholder,
-      prefixIconConstraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-      filled: true,
-      fillColor: AppColors.fieldFill,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      errorStyle: const TextStyle(
-        color: AppColors.error,
-        fontSize: 12.5,
-        height: 1.3,
-      ),
-      errorMaxLines: 2,
-      enabledBorder: const OutlineInputBorder(
-        borderRadius: radius,
-        borderSide: BorderSide(color: AppColors.fieldBorder, width: 1),
-      ),
-      focusedBorder: const OutlineInputBorder(
-        borderRadius: radius,
-        borderSide: BorderSide(color: AppColors.cyan, width: 1.5),
-      ),
-      errorBorder: const OutlineInputBorder(
-        borderRadius: radius,
-        borderSide: BorderSide(color: AppColors.error, width: 1),
-      ),
-      focusedErrorBorder: const OutlineInputBorder(
-        borderRadius: radius,
-        borderSide: BorderSide(color: AppColors.error, width: 1.5),
-      ),
-    );
+    return authFieldDecoration(icon: icon, hint: hint);
   }
 
   @override
@@ -344,31 +271,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildHeader() {
-    return Row(
-      children: [
-        SizedBox(
-          width: 34,
-          height: 34,
-          child: Stack(
-            alignment: Alignment.center,
-            children: const [
-              Icon(Icons.hexagon, size: 34, color: AppColors.cyan),
-              Icon(Icons.code_rounded, size: 16, color: AppColors.panelDeep),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        const Text(
-          'TuEstadia',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 21,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.2,
-          ),
-        ),
-      ],
-    );
+    return authBrandHeader();
   }
 
   Widget _buildTitle(double titleSize) {
@@ -561,7 +464,7 @@ class _LoginPageState extends State<LoginPage> {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
-            onTap: _onRegisterPressed,
+            onTap: _openRegister,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
               child: Text.rich(

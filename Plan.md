@@ -55,9 +55,11 @@ Las tres pantallas del plan ya están programadas y conectadas a Firebase:
 |---|---|---|
 | Home - Feed | `lib/features/feed/home_page.dart` | ✅ Completa |
 | Biblioteca | `lib/features/library/library_page.dart` | ✅ Completa (con `CustomPainter` para la línea de tiempo) |
-| Foro de Dudas | `lib/features/forum/forum_page.dart` | ✅ Completa (con syntax highlighting) |
+| Foro de Dudas | `lib/features/forum/forum_page.dart` | ✅ Completa: hilos, respuestas, likes, media (Cloudinary), encuestas, búsqueda, tendencias y borrado propio |
 | Navegación principal | `lib/features/shell/main_shell.dart` | ✅ Completa |
 | Crear publicación | `lib/features/forum/create_post_page.dart` | ✅ Completa |
+| Registro | `lib/features/auth/register_page.dart` | ✅ Completa (sin confirmación de correo) |
+| Verificación de correo | `lib/features/auth/email_verification_page.dart` | ✅ Implementada, desactivada por defecto |
 | Perfil | `lib/features/profile/profile_page.dart` | ✅ Completa |
 
 La paleta Neo-Dark del plan está centralizada en `AppColors` (`lib/app_theme.dart`)
@@ -96,10 +98,16 @@ iOS/macOS: appId 1:855255390470:ios:0b9a70427a519a6cd96687
 | Acción | Implementación |
 |---|---|
 | Ingresar | `AuthService.signIn` → `signInWithEmailAndPassword` |
-| Registrarse | `AuthService.register` → crea usuario + documento en `profiles` |
+| Registrarse | `RegisterPage` (nombre, correo, contraseña, confirmar) → `createUserWithEmailAndPassword` + documento en `profiles` |
 | ¿Olvidaste tu contraseña? | `sendPasswordResetEmail` |
 | Cerrar sesión | `signOut` desde Perfil |
 | Modo demo | Solo si Firebase no está disponible |
+
+El registro **no pide confirmación**: la cuenta queda `status: 'active'` y entra
+directo. La verificación de correo ya está implementada
+(`EmailVerificationPage`, reenvío con espera de 60 s, `user.reload()`) y se
+activa con `AuthConfig.requireEmailVerification` o
+`--dart-define=TUESTADIA_REQUIRE_EMAIL_VERIFICATION=true`.
 
 ## Sembrado de datos
 
@@ -113,7 +121,36 @@ colecciones `projects`, `courses`, `chapters` y `posts` (solo si están vacías)
 | `projects` | `title`, `tech`, `imageUrl`, `authorName`, `authorAvatar`, `saved`, `createdAt` |
 | `courses` | `title`, `subtitle`, `iconKey`, `colorValue`, `gradientStart`, `gradientEnd` |
 | `chapters` | `courseId`, `title`, `chapterNumber`, `progress` |
-| `posts` | `authorName`, `authorAvatar`, `question`, `code`, `likes`, `replies`, `saved`, `createdAt` |
-| `profiles` | `displayName`, `email`, `photoUrl`, `bio`, `updatedAt` |
+| `posts` | `authorId`, `authorName`, `authorAvatar`, `question`, `code`, `likes`, `likedBy`, `replies`, `saved`, `savedBy`, `views`, `parentPostId`, `createdAt` |
+| `profiles` | `displayName`, `email`, `photoUrl`, `bio`, `emailVerified`, `status`, `postsCount`, `repliesCount`, `savedCount`, `createdAt`, `updatedAt`, `verificationSentAt` |
+
+## Foro de Dudas: hilos y likes
+
+- Hilos en una sola colección: las respuestas son documentos de `posts` con
+  `parentPostId` (patrón tomado de `fwitter_reborn`).
+- `PostDetailPage`: pregunta + respuestas + barra para responder; registra la
+  vista al abrirse.
+- Likes por usuario (`likedBy` + contador `likes`) con actualización optimista:
+  el icono y el contador cambian al instante y se revierten si Firestore falla.
+- `ComposePostPage` exige sesión, guarda `authorId` y actualiza `profiles/{uid}`
+  (`postsCount` / `repliesCount` / `savedCount`).
+- El listado consulta `posts` con `orderBy('createdAt')` y separa raíces y
+  respuestas en Dart (sin índices compuestos).
+
+### Ampliación estilo Twitter
+
+- **Media**: `CloudinaryService` (cloud `xnnb3pfg`, preset `fwitter_preset`)
+  para imágenes, vídeos y GIF; `MediaUploadService` limita a 4 adjuntos y 15 MB.
+- **Compositor**: barra inferior con imagen, cámara, GIF, encuesta, ubicación y
+  bloque de código, contador de 280 y vistas previas.
+- **Encuestas**: hasta 4 opciones, voto por usuario y porcentajes en vivo
+  (`runTransaction` para votar).
+- **Búsqueda**: `ForumSearchPage` con sugerencias en vivo y
+  `ForumSearchResultsPage` con pestañas (Destacados, Recientes, Personas,
+  Multimedia, Listas) y filtros (fecha, excluir respuestas, etc.).
+- **Tendencias**: `ForumTrendEngine` calcula en el cliente con
+  `engagement × decaimiento temporal` y normaliza a 0..100.
+- **Borrar**: solo el autor; el menú "…" oculta la opción en posts ajenos y las
+  reglas de Firestore lo validan.
 
 Guía completa de conexión: `FIREBASE_SETUP.md`.

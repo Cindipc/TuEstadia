@@ -8,6 +8,22 @@ rules_version = '2';
 // Para aplicarlas:
 //   Firebase Console > Firestore Database > Rules > pega este contenido > Publish
 // (o `firebase deploy --only firestore:rules` si usas Firebase CLI).
+//
+// ── Verificación de correo (preparada) ────────────────────────────────────────
+// Ahora mismo el registro es inmediato y no se exige confirmar el correo, así
+// que las escrituras piden solo `request.auth != null`.
+//
+// Cuando actives `AuthConfig.requireEmailVerification`, puedes endurecer las
+// reglas añadiendo a cada `allow write` la condición:
+//
+//   && request.auth.token.email_verified == true
+//
+// Ejemplo:
+//   allow write: if request.auth != null
+//                && request.auth.token.email_verified == true;
+//
+// Sin esa condición, un usuario podría saltarse la pantalla de verificación
+// llamando directamente a la API; con ella, Firestore también lo bloquea.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -30,7 +46,22 @@ service cloud.firestore {
 
     match /posts/{postId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      // Solo se puede publicar a nombre propio: el post debe llevar tu uid.
+      allow create: if request.auth != null
+                    && request.resource.data.authorId == request.auth.uid;
+      // El autor puede editar su post; el resto solo puede tocar los campos
+      // de interacción (likes, guardados, vistas, respuestas y votos).
+      allow update: if request.auth != null
+                    && (resource.data.authorId == request.auth.uid
+                        || request.resource.data
+                             .diff(resource.data)
+                             .affectedKeys()
+                             .hasOnly([
+                               'likes', 'likedBy', 'saved', 'savedBy',
+                               'views', 'replies', 'poll',
+                             ]));
+      allow delete: if request.auth != null
+                    && resource.data.authorId == request.auth.uid;
     }
 
     // Cada usuario administra su propio perfil.

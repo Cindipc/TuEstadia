@@ -101,14 +101,12 @@ class SeedService {
       }
 
       if (isEmpty[ForumRepository.collectionName]!) {
-        for (var index = 0; index < DemoData.posts.length; index++) {
-          final ForumPostModel post = DemoData.posts[index];
+        for (final ForumPostModel post in DemoData.posts) {
+          // Se conserva el createdAt del modelo para que las respuestas queden
+          // después de su publicación padre.
           batch.set(
             firestore.collection(ForumRepository.collectionName).doc(post.id),
-            {
-              ...post.toMap(),
-              'createdAt': now.subtract(Duration(hours: index * 5)),
-            },
+            post.toMap(),
           );
         }
       }

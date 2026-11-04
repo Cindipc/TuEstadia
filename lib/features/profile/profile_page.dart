@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app_theme.dart';
 import '../../core/auth_service.dart';
 import '../../core/firebase_bootstrap.dart';
+import '../../core/repositories/forum_repository.dart';
 import '../../core/seed_service.dart';
 import '../../core/widgets/app_avatar.dart';
 
@@ -17,6 +18,8 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  final ForumRepository _forumRepository = ForumRepository();
+
   bool _seeding = false;
 
   Future<void> _seedDemoData() async {
@@ -47,6 +50,54 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
       );
+  }
+
+  Widget _buildStats() {
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) {
+      return const Row(
+        children: [
+          Expanded(child: _StatCard(value: '0', label: 'Posts')),
+          SizedBox(width: 12),
+          Expanded(child: _StatCard(value: '0', label: 'Respuestas')),
+          SizedBox(width: 12),
+          Expanded(child: _StatCard(value: '0', label: 'Guardados')),
+        ],
+      );
+    }
+
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: _forumRepository.watchProfile(uid),
+      builder: (context, snapshot) {
+        final data = snapshot.data ?? const <String, dynamic>{};
+        String read(String key) {
+          final value = (data[key] as num?)?.toInt() ?? 0;
+          return '${value < 0 ? 0 : value}';
+        }
+
+        return Row(
+          children: [
+            Expanded(
+              child: _StatCard(value: read('postsCount'), label: 'Posts'),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatCard(
+                value: read('repliesCount'),
+                label: 'Respuestas',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatCard(
+                value: read('savedCount'),
+                label: 'Guardados',
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -125,15 +176,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 16),
-            const Row(
-              children: [
-                Expanded(child: _StatCard(value: '12', label: 'Proyectos')),
-                SizedBox(width: 12),
-                Expanded(child: _StatCard(value: '8', label: 'Guardados')),
-                SizedBox(width: 12),
-                Expanded(child: _StatCard(value: '24', label: 'Respuestas')),
-              ],
-            ),
+            _buildStats(),
             const SizedBox(height: 22),
             const Text(
               'Conexión',
@@ -274,6 +317,9 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppColors.neoTextMuted,
               fontSize: 11.5,

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../app_theme.dart';
 import '../../../core/models/forum_post.dart';
 import 'code_block.dart';
+import 'forum_media_grid.dart';
+import 'forum_poll_widget.dart';
+import 'forum_post_menu.dart';
 
 /// Tarjeta de una publicación del foro.
 class ForumPostCard extends StatelessWidget {
@@ -12,12 +15,37 @@ class ForumPostCard extends StatelessWidget {
     required this.onLike,
     required this.onSave,
     required this.onReply,
+    this.onTap,
+    this.currentUserId,
+    this.replyCount,
+    this.showReplyAction = true,
+    this.onDelete,
+    this.onCopyLink,
+    this.onVote,
+    this.votingPoll = false,
   });
 
   final ForumPostModel post;
   final VoidCallback onLike;
   final VoidCallback onSave;
   final VoidCallback onReply;
+  final VoidCallback? onTap;
+
+  /// uid del usuario actual para pintar like/guardado y eliminar.
+  final String? currentUserId;
+
+  /// Contador de respuestas calculado por la pantalla.
+  final int? replyCount;
+
+  final bool showReplyAction;
+
+  /// Eliminar (solo se muestra si el post es del usuario actual).
+  final VoidCallback? onDelete;
+  final VoidCallback? onCopyLink;
+
+  /// Votar en la encuesta.
+  final ValueChanged<String>? onVote;
+  final bool votingPoll;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +54,7 @@ class ForumPostCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onReply,
+        onTap: onTap ?? onReply,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
           child: Column(
@@ -43,9 +71,46 @@ class ForumPostCard extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              if (post.hasMedia) ...[
+                const SizedBox(height: 12),
+                ForumMediaGrid(media: post.media),
+              ],
               if (post.code.trim().isNotEmpty) ...[
                 const SizedBox(height: 12),
                 CodeBlock(code: post.code),
+              ],
+              if (post.poll != null) ...[
+                const SizedBox(height: 12),
+                ForumPollWidget(
+                  poll: post.poll!,
+                  currentUserId: currentUserId,
+                  voting: votingPoll,
+                  onVote: onVote ?? (_) {},
+                ),
+              ],
+              if ((post.location ?? '').isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      size: 13,
+                      color: AppColors.neoTextMuted,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        post.location!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.neoTextMuted,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
               const SizedBox(height: 6),
               _buildActionBar(),
@@ -57,6 +122,8 @@ class ForumPostCard extends StatelessWidget {
   }
 
   Widget _buildHeader() {
+    final isOwner = post.isOwnedBy(currentUserId);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -86,38 +153,43 @@ class ForumPostCard extends StatelessWidget {
             ],
           ),
         ),
-        IconButton(
-          icon: const Icon(Icons.more_horiz, size: 20),
-          color: AppColors.neoTextMuted,
-          tooltip: 'Más opciones',
-          onPressed: () {},
+        ForumPostMenu(
+          isOwner: isOwner && onDelete != null,
+          onCopyLink: onCopyLink ?? () {},
+          onDelete: onDelete ?? () {},
         ),
       ],
     );
   }
 
   Widget _buildActionBar() {
+    final liked = post.isLikedBy(currentUserId);
+    // Compatibilidad con documentos antiguos que solo guardaban `saved`.
+    final saved =
+        post.isSavedBy(currentUserId) || (post.savedBy.isEmpty && post.saved);
+
     return Wrap(
       spacing: 18,
       runSpacing: 4,
       children: [
+        if (showReplyAction)
+          _ActionButton(
+            icon: Icons.mode_comment_outlined,
+            label: 'Responder',
+            count: replyCount ?? post.replies,
+            onPressed: onReply,
+          ),
         _ActionButton(
-          icon: Icons.mode_comment_outlined,
-          label: 'Responder',
-          count: post.replies,
-          onPressed: onReply,
-        ),
-        _ActionButton(
-          icon: post.likes > 0 ? Icons.favorite : Icons.favorite_border,
+          icon: liked ? Icons.favorite : Icons.favorite_border,
           label: 'Like',
           count: post.likes,
-          color: post.likes > 0 ? const Color(0xFFF472B6) : null,
+          color: liked ? AppColors.neoLike : null,
           onPressed: onLike,
         ),
         _ActionButton(
-          icon: post.saved ? Icons.bookmark : Icons.bookmark_border,
+          icon: saved ? Icons.bookmark : Icons.bookmark_border,
           label: 'Guardar',
-          color: post.saved ? AppColors.neoEmerald : null,
+          color: saved ? AppColors.neoEmerald : null,
           onPressed: onSave,
         ),
       ],
