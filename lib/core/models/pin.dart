@@ -13,6 +13,7 @@ class PinModel {
     required this.authorName,
     required this.authorAvatar,
     this.createdAt,
+    this.savedBy = const [],
   });
 
   final String id;
@@ -24,6 +25,11 @@ class PinModel {
   final String authorName;
   final String authorAvatar;
   final DateTime? createdAt;
+
+  /// uids de quienes guardaron el pin (para "Guardados" del perfil).
+  final List<String> savedBy;
+
+  bool isSavedBy(String? uid) => uid != null && savedBy.contains(uid);
 
   factory PinModel.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? const <String, dynamic>{};
@@ -37,18 +43,25 @@ class PinModel {
       authorName: (d['authorName'] as String?) ?? 'Anónimo',
       authorAvatar: (d['authorAvatar'] as String?) ?? '',
       createdAt: (d['createdAt'] as Timestamp?)?.toDate(),
+      savedBy: ((d['savedBy'] as List?) ?? const [])
+          .whereType<String>()
+          .toList(growable: false),
     );
   }
 
   /// Convierte el pin a ProjectModel para reutilizar ProjectCard.
   ProjectModel toProject() => ProjectModel(
-        id: id,
-        title: title,
-        tech: tech,
-        imageUrl: imageUrl,
-        authorName: authorName,
-        authorAvatar: authorAvatar,
-        saved: false,
-        createdAt: createdAt ?? DateTime.now(),
-      );
+    id: id,
+    title: title,
+    tech: tech,
+    imageUrl: imageUrl,
+    authorName: authorName,
+    authorAvatar: authorAvatar,
+    saved: false,
+    createdAt: createdAt ?? DateTime.now(),
+    authorId: authorId.isEmpty ? null : authorId,
+    savedBy: savedBy,
+    source: ProjectSource.pin,
+    description: description,
+  );
 }

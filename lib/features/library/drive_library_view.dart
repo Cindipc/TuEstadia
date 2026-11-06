@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app_theme.dart';
+import '../../core/auth_service.dart';
 import '../../core/models/drive_file.dart';
+import '../../core/repositories/user_library_repository.dart';
 import 'drive_library_controller.dart';
 
 /// Navegador de la carpeta pública de Google Drive.
@@ -29,8 +33,11 @@ class _DriveLibraryViewState extends State<DriveLibraryView> {
 
   late final DriveLibraryController _controller;
   late final bool _ownsController;
+  final UserLibraryRepository _libraryRepository = UserLibraryRepository();
+  StreamSubscription<Set<String>>? _savedSubscription;
   final TextEditingController _searchController = TextEditingController();
   DriveFileCategory? _category;
+  Set<String> _savedFileIds = const {};
 
   @override
   void initState() {
@@ -38,13 +45,51 @@ class _DriveLibraryViewState extends State<DriveLibraryView> {
     _ownsController = widget.controller == null;
     _controller = widget.controller ?? DriveLibraryController();
     _controller.ensureLoaded();
+
+    final uid = AuthService.currentUser?.uid;
+    if (uid != null) {
+      _savedSubscription = _libraryRepository
+          .watchSavedFileIds(uid)
+          .listen((ids) {
+            if (mounted) setState(() => _savedFileIds = ids);
+          });
+    }
   }
 
   @override
   void dispose() {
+    _savedSubscription?.cancel();
     _searchController.dispose();
     if (_ownsController) _controller.dispose();
     super.dispose();
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _toggleLibraryItem(DriveFile file) async {
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null) {
+      _showMessage('Inicia sesión para añadir archivos a tu perfil.');
+      return;
+    }
+
+    final wasSaved = _savedFileIds.contains(file.id);
+    final ok = await _libraryRepository.toggleItem(uid: uid, file: file);
+    if (!mounted) return;
+
+    if (!ok) {
+      _showMessage('No se pudo actualizar tu biblioteca.');
+      return;
+    }
+    _showMessage(
+      wasSaved
+          ? 'Quitado de tu biblioteca'
+          : 'Añadido a tu biblioteca del perfil',
+    );
   }
 
   List<DriveFile> get _visibleFiles {
@@ -250,6 +295,8 @@ class _DriveLibraryViewState extends State<DriveLibraryView> {
               return _DriveFileCard(
                 file: files[index],
                 preview: _buildPreview(files[index]),
+                isSaved: _savedFileIds.contains(files[index].id),
+                onSave: () => _toggleLibraryItem(files[index]),
                 onOpenFolder: () => _openFolder(files[index]),
                 onView: () => _launchUrl(files[index].webViewLink),
                 onDownload: () => _launchUrl(files[index].downloadUrl),
@@ -403,6 +450,8 @@ class _DriveFileCard extends StatelessWidget {
     required this.onOpenFolder,
     required this.onView,
     required this.onDownload,
+    required this.isSaved,
+    required this.onSave,
   });
 
   final DriveFile file;
@@ -410,6 +459,8 @@ class _DriveFileCard extends StatelessWidget {
   final VoidCallback onOpenFolder;
   final VoidCallback onView;
   final VoidCallback onDownload;
+  final bool isSaved;
+  final VoidCallback onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -466,6 +517,19 @@ class _DriveFileCard extends StatelessWidget {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: isSaved
+                        ? 'Quitar de mi biblioteca'
+                        : 'Añadir a mi perfil',
+                    onPressed: onSave,
+                    icon: Icon(
+                      isSaved ? Icons.bookmark : Icons.bookmark_border,
+                      size: 20,
+                      color: isSaved
+                          ? AppColors.neoEmerald
+                          : AppColors.neoTextMuted,
                     ),
                   ),
                   if (file.isFolder)

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'demo_data.dart';
 import 'firebase_bootstrap.dart';
@@ -44,6 +45,14 @@ class SeedService {
     }
 
     final firestore = FirebaseFirestore.instance;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return const SeedResult(
+        SeedStatus.permissionDenied,
+        'Inicia sesión para cargar los datos de prueba.',
+      );
+    }
+
     try {
       final existing = await Future.wait(
         _collections.map((name) => firestore.collection(name).limit(1).get()),
@@ -72,6 +81,8 @@ class SeedService {
                 .doc(project.id),
             {
               ...project.toMap(),
+              'authorId': uid,
+              'savedBy': const <String>[],
               'createdAt': now.subtract(Duration(hours: index * 7)),
             },
           );
@@ -103,10 +114,17 @@ class SeedService {
       if (isEmpty[ForumRepository.collectionName]!) {
         for (final ForumPostModel post in DemoData.posts) {
           // Se conserva el createdAt del modelo para que las respuestas queden
-          // después de su publicación padre.
+          // después de su publicación padre. El usuario que siembra queda como
+          // autor para cumplir las reglas de "crear a nombre propio".
           batch.set(
             firestore.collection(ForumRepository.collectionName).doc(post.id),
-            post.toMap(),
+            {
+              ...post.toMap(),
+              'authorId': post.authorId ?? uid,
+              'likedBy': const <String>[],
+              'savedBy': const <String>[],
+              'views': const <String>[],
+            },
           );
         }
       }

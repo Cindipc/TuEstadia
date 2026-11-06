@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../app_theme.dart';
+import '../../core/auth_service.dart';
 import '../../core/firebase_bootstrap.dart';
 import '../../core/models/pin.dart'; // NUEVO
 import '../../core/models/project.dart';
@@ -37,6 +38,7 @@ class _HomePageState extends State<HomePage> {
 
   final TextEditingController _searchController = TextEditingController();
   late final ProjectRepository _repository;
+  late final PinRepository _pinRepository;
   late final Stream<List<ProjectModel>> _projects;
   late final Stream<List<PinModel>> _pins; // NUEVO
 
@@ -48,10 +50,11 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _repository = widget.repository ?? ProjectRepository();
+    _pinRepository = PinRepository();
     _projects = _repository.watchProjects();
     // NUEVO: en modo demo (sin Firebase) no se consulta Firestore.
     _pins = FirebaseBootstrap.isAvailable
-        ? PinRepository().watchFeed()
+        ? _pinRepository.watchFeed()
         : Stream.value(const <PinModel>[]);
   }
 
@@ -164,6 +167,8 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final uid = AuthService.currentUser?.uid;
+
     return Scaffold(
       backgroundColor: AppColors.neoBackground,
       floatingActionButton: FloatingActionButton(
@@ -203,7 +208,7 @@ class _HomePageState extends State<HomePage> {
                       final projects = _applyFilters([
                         ...(snapshot.data ?? const <ProjectModel>[]),
                         ...pinProjects,
-                      ]);
+                      ]).map((project) => project.forUser(uid)).toList();
 
                       if (projects.isEmpty) {
                         return _EmptyState(onReset: _resetFilters);
@@ -228,11 +233,29 @@ class _HomePageState extends State<HomePage> {
   MaterialPageRoute(builder: (_) => PinDetailPage(project: project)),
 ),
                             onToggleSave: () async {
-                              final saved = await _repository.toggleSave(
-                                project,
-                              );
+                              if (uid == null) {
+                                _showMessage(
+                                  FirebaseBootstrap.isAvailable
+                                      ? 'Inicia sesión para guardar proyectos.'
+                                      : 'Modo demo: los cambios no se guardan.',
+                                );
+                                return;
+                              }
+
+                              final currentlySaved =
+                                  project.isSavedBy(uid) || project.saved;
+                              final ok = project.source == ProjectSource.pin
+                                  ? await _pinRepository.toggleSave(
+                                      pinId: project.id,
+                                      uid: uid,
+                                      currentlySaved: currentlySaved,
+                                    )
+                                  : await _repository.toggleSave(
+                                      project,
+                                      uid,
+                                    );
                               if (!context.mounted) return;
-                              if (!saved) {
+                              if (!ok) {
                                 _showMessage(
                                   FirebaseBootstrap.isAvailable
                                       ? 'No se pudo guardar. Revisa tu sesión y las '
@@ -242,9 +265,9 @@ class _HomePageState extends State<HomePage> {
                                 return;
                               }
                               _showMessage(
-                                project.saved
+                                currentlySaved
                                     ? 'Quitado de guardados'
-                                    : 'Guardado en tu biblioteca',
+                                    : 'Guardado en tu perfil',
                               );
                             },
                           );

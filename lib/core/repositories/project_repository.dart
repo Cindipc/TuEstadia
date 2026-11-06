@@ -37,17 +37,38 @@ class ProjectRepository {
     );
   }
 
-  /// Alterna el estado "guardado" de un proyecto.
+  /// Alterna el estado "guardado" de un proyecto para el usuario [uid].
   ///
   /// Devuelve `true` si el cambio se escribió en Firestore.
-  Future<bool> toggleSave(ProjectModel project) async {
+  Future<bool> toggleSave(ProjectModel project, String uid) async {
     if (!FirebaseBootstrap.isAvailable) return false;
+    final saved = project.isSavedBy(uid) || project.saved;
     try {
-      await _collection.doc(project.id).update({'saved': !project.saved});
+      await _collection.doc(project.id).update({
+        'savedBy': saved
+            ? FieldValue.arrayRemove([uid])
+            : FieldValue.arrayUnion([uid]),
+        'saved': !saved,
+      });
       return true;
     } catch (_) {
       return false;
     }
+  }
+
+  /// Proyectos guardados por un usuario (para el perfil).
+  Stream<List<ProjectModel>> watchSavedProjects(String uid) {
+    if (!FirebaseBootstrap.isAvailable) {
+      return Stream.value(const <ProjectModel>[]);
+    }
+    return withFallback(
+      _collection.where('savedBy', arrayContains: uid).snapshots().map((s) {
+        final projects = s.docs.map(ProjectModel.fromDoc).toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return projects;
+      }),
+      const <ProjectModel>[],
+    );
   }
 
   /// Crea un proyecto nuevo.
@@ -57,6 +78,7 @@ class ProjectRepository {
     required String imageUrl,
     required String authorName,
     required String authorAvatar,
+    String? authorId,
   }) async {
     if (!FirebaseBootstrap.isAvailable) return false;
     try {
@@ -66,7 +88,9 @@ class ProjectRepository {
         'imageUrl': imageUrl,
         'authorName': authorName,
         'authorAvatar': authorAvatar,
+        'authorId': authorId,
         'saved': false,
+        'savedBy': <String>[],
         'createdAt': FieldValue.serverTimestamp(),
       });
       return true;

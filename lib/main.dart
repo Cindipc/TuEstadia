@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart' show User;
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'app_theme.dart';
 import 'core/auth_config.dart';
@@ -11,6 +12,9 @@ import 'login_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Variables locales (.env). Si el asset no viaja en el bundle, no rompe:
+  // DriveConfig tiene un respaldo que lee el archivo del proyecto.
+  await dotenv.load(fileName: '.env', isOptional: true);
   await FirebaseBootstrap.initialize();
   runApp(const TuEstadiaApp());
 }
