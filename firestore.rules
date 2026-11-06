@@ -3,7 +3,8 @@ rules_version = '2';
 // Reglas de Firestore para TuEstadia.
 //
 // Lectura pública del contenido (feed, biblioteca y foro) y escritura solo para
-// usuarios autenticados. El perfil solo lo puede escribir su dueño.
+// usuarios autenticados. El perfil y la biblioteca personal solo los escribe su
+// dueño.
 //
 // Para aplicarlas:
 //   Firebase Console > Firestore Database > Rules > pega este contenido > Publish
@@ -18,22 +19,55 @@ rules_version = '2';
 //
 //   && request.auth.token.email_verified == true
 //
-// Ejemplo:
-//   allow write: if request.auth != null
-//                && request.auth.token.email_verified == true;
-//
 // Sin esa condición, un usuario podría saltarse la pantalla de verificación
 // llamando directamente a la API; con ella, Firestore también lo bloquea.
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Contenido de solo lectura pública, escritura autenticada.
+    // ── Proyectos (feed legacy) ────────────────────────────────────────────
     match /projects/{projectId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.authorId == request.auth.uid;
+      // El autor edita todo; el resto solo puede guardar/quitar de guardados.
+      allow update: if request.auth != null
+                    && (resource.data.authorId == request.auth.uid
+                        || request.resource.data
+                             .diff(resource.data)
+                             .affectedKeys()
+                             .hasOnly(['saved', 'savedBy']));
+      allow delete: if request.auth != null
+                    && resource.data.authorId == request.auth.uid;
     }
 
+    // ── Pines del feed (Pinterest) ─────────────────────────────────────────
+    match /pins/{pinId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.authorId == request.auth.uid;
+      // Guardar un pin ajeno es un update que SOLO toca `savedBy`.
+      allow update: if request.auth != null
+                    && (resource.data.authorId == request.auth.uid
+                        || request.resource.data
+                             .diff(resource.data)
+                             .affectedKeys()
+                             .hasOnly(['savedBy']));
+      allow delete: if request.auth != null
+                    && resource.data.authorId == request.auth.uid;
+    }
+
+    // ── Biblioteca personal (archivos de Drive asignados) ──────────────────
+    match /libraryItems/{itemId} {
+      allow read: if request.auth != null
+                  && resource.data.ownerId == request.auth.uid;
+      allow create: if request.auth != null
+                    && request.resource.data.ownerId == request.auth.uid;
+      allow update, delete: if request.auth != null
+                            && resource.data.ownerId == request.auth.uid;
+    }
+
+    // ── Cursos y capítulos ─────────────────────────────────────────────────
     match /courses/{courseId} {
       allow read: if true;
       allow write: if request.auth != null;
@@ -44,6 +78,7 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
 
+    // ── Foro ──────────────────────────────────────────────────────────────
     match /posts/{postId} {
       allow read: if true;
       // Solo se puede publicar a nombre propio: el post debe llevar tu uid.
@@ -64,7 +99,7 @@ service cloud.firestore {
                     && resource.data.authorId == request.auth.uid;
     }
 
-    // Cada usuario administra su propio perfil.
+    // ── Perfiles ──────────────────────────────────────────────────────────
     match /profiles/{userId} {
       allow read: if true;
       allow write: if request.auth != null && request.auth.uid == userId;

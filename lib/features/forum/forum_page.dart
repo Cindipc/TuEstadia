@@ -6,6 +6,7 @@ import '../../app_theme.dart';
 import '../../core/auth_service.dart';
 import '../../core/models/forum_post.dart';
 import '../../core/repositories/forum_repository.dart';
+import '../../core/seed_service.dart';
 import '../../core/utils/forum_interactions.dart';
 import '../../core/widgets/app_avatar.dart';
 import 'screens/compose_post_page.dart';
@@ -90,6 +91,12 @@ class _ForumPageState extends State<ForumPage> {
     );
   }
 
+  Future<void> _seedDemoData() async {
+    final result = await SeedService.seedDemoData();
+    if (!mounted) return;
+    _showMessage(result.message ?? 'Listo');
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = forumInteractionUid();
@@ -130,6 +137,36 @@ class _ForumPageState extends State<ForumPage> {
               icon: const Icon(Icons.trending_up),
               tooltip: 'Tendencias',
               onPressed: _openTrends,
+            ),
+            PopupMenuButton<String>(
+              tooltip: 'Más opciones',
+              color: AppColors.neoSurface,
+              icon: const Icon(Icons.more_vert),
+              onSelected: (value) {
+                if (value == 'seed') _seedDemoData();
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'seed',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.upload_file,
+                        size: 18,
+                        color: AppColors.neoTextMuted,
+                      ),
+                      SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          'Cargar datos de prueba',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(width: 6),
           ],

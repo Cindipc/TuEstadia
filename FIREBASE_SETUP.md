@@ -29,11 +29,38 @@ lecturas.
 
 Resumen de las reglas:
 
-- Lectura pública de `projects`, `courses`, `chapters`, `posts` y `profiles`.
+- Lectura pública de `projects`, `pins`, `libraryItems`, `courses`, `chapters`,
+  `posts` y `profiles`.
 - Escritura solo con sesión iniciada.
-- En `posts`, crear exige que `authorId` sea el uid del usuario; borrar solo
-  permite al autor.
+- En `posts`, `pins` y `projects`, crear exige que `authorId` sea el uid del
+  usuario; borrar solo lo permite el autor.
+- Los demás usuarios solo pueden modificar los campos de interacción
+  (`likedBy`, `savedBy`, `views`, `replies`, `poll`).
+- En `libraryItems`, cada usuario solo crea/edita/borra sus propios elementos
+  (`ownerId == uid`).
 - Cada usuario solo escribe su propio documento en `profiles`.
+
+### Perfil del usuario
+
+El perfil (Twitter + Pinterest) muestra la actividad real del usuario:
+
+| Pestaña | Fuente |
+|---|---|
+| Publicaciones | `pins` con `authorId == uid` + `posts` con `authorId == uid` |
+| Me gusta | `posts` con `uid` dentro de `likedBy` |
+| Guardados | `pins`/`projects` con `uid` dentro de `savedBy` + `posts` con `uid` en `savedBy` |
+| Biblioteca | `libraryItems` con `ownerId == uid` |
+
+- **Editar perfil** (`EditProfilePage`): nombre, `@usuario`, bio y foto (subida a
+  Cloudinary). Guarda en Firebase Auth y en `profiles/{uid}`.
+- **Cerrar sesión** desde la cabecera.
+- En la Biblioteca de Drive, el marcador de cada archivo lo añade a
+  `libraryItems` para que aparezca en el perfil.
+
+> Guardar el pin de otra persona solo escribe `savedBy`; la regla de `pins`
+> permite ese campo a cualquier usuario autenticado y reserva el resto del
+> documento al autor. Si el guardado falla, es que las reglas publicadas en la
+> consola aún no incluyen esa excepción.
 
 ---
 
@@ -57,11 +84,13 @@ tabla de abajo.
 
 | Colección | Campos |
 |---|---|
-| `projects` | `title`, `tech`, `imageUrl`, `authorName`, `authorAvatar`, `saved`, `createdAt` |
+| `projects` | `title`, `tech`, `imageUrl`, `authorName`, `authorAvatar`, `authorId`, `saved`, `savedBy`, `createdAt` |
+| `pins` | `title`, `description`, `imageUrl`, `tech`, `authorId`, `authorName`, `authorAvatar`, `savedBy`, `createdAt` |
+| `libraryItems` | `ownerId`, `fileId`, `name`, `mimeType`, `size`, `webViewLink`, `thumbnailUrl`, `category`, `addedAt` |
 | `courses` | `title`, `subtitle`, `iconKey`, `colorValue`, `gradientStart`, `gradientEnd` |
 | `chapters` | `courseId`, `title`, `chapterNumber`, `progress` |
 | `posts` | `authorId`, `authorName`, `authorAvatar`, `question`, `code`, `media`, `tags`, `location`, `poll`, `likes`, `likedBy`, `replies`, `saved`, `savedBy`, `views`, `parentPostId`, `createdAt` |
-| `profiles` | `displayName`, `email`, `photoUrl`, `bio`, `emailVerified`, `status`, `postsCount`, `repliesCount`, `savedCount`, `createdAt`, `updatedAt`, `verificationSentAt` |
+| `profiles` | `displayName`, `username`, `email`, `photoUrl`, `bannerUrl`, `bio`, `emailVerified`, `status`, `postsCount`, `repliesCount`, `savedCount`, `pinsCount`, `createdAt`, `updatedAt`, `verificationSentAt` |
 
 `iconKey` admite: `python`, `flutter`, `database`, `git`, `algorithm`, `code`.
 
@@ -206,8 +235,8 @@ lib/
 │   ├── seed_service.dart          # Sembrado de datos en Firestore
 │   ├── demo_data.dart             # Datos de prueba
 │   ├── stream_utils.dart          # Fallback de streams (vacío/error)
-│   ├── models/                     # Project, Course, Chapter, ForumPost, Media, Poll, Trend, Profile
-│   ├── repositories/               # Project, Library, Forum
+│   ├── models/                     # Project, Pin, LibraryItem, ForumPost, Media, Poll, Trend, Profile…
+│   ├── repositories/               # Project, Pin, UserLibrary, Forum, Library
 │   ├── services/
 │   │   ├── cloudinary_service.dart  # Subida de imágenes/vídeos/GIF
 │   │   ├── media_upload_service.dart # Límites y subida de adjuntos
@@ -231,6 +260,9 @@ lib/
     │   │   ├── forum_trends_page.dart        # Tendencias
     │   │   └── forum_filters_sheet.dart      # Filtros de búsqueda
     │   └── widgets/                          # Tarjetas, media, encuesta, compositor…
-    ├── profile/profile_page.dart  # Perfil + estado de Firestore + seed
+    ├── profile/
+    │   ├── profile_page.dart        # Perfil: 4 pestañas de actividad
+    │   ├── edit_profile_page.dart   # Nombre, @usuario, bio y foto
+    │   └── widgets/                 # Cabecera, selector y tile de biblioteca
     └── shell/main_shell.dart      # Navegación inferior
 ```

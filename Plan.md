@@ -60,7 +60,7 @@ Las tres pantallas del plan ya están programadas y conectadas a Firebase:
 | Crear publicación | `lib/features/forum/create_post_page.dart` | ✅ Completa |
 | Registro | `lib/features/auth/register_page.dart` | ✅ Completa (sin confirmación de correo) |
 | Verificación de correo | `lib/features/auth/email_verification_page.dart` | ✅ Implementada, desactivada por defecto |
-| Perfil | `lib/features/profile/profile_page.dart` | ✅ Completa |
+| Perfil | `lib/features/profile/profile_page.dart` | ✅ Completa: 4 pestañas (Publicaciones, Me gusta, Guardados, Biblioteca), edición y cierre de sesión |
 
 La paleta Neo-Dark del plan está centralizada en `AppColors` (`lib/app_theme.dart`)
 y el tema completo en `AppTheme.neoDark`:
@@ -152,5 +152,17 @@ colecciones `projects`, `courses`, `chapters` y `posts` (solo si están vacías)
   `engagement × decaimiento temporal` y normaliza a 0..100.
 - **Borrar**: solo el autor; el menú "…" oculta la opción en posts ajenos y las
   reglas de Firestore lo validan.
+
+## Perfil del usuario
+
+- Cabecera estilo Twitter: portada, avatar solapado, nombre, `@usuario`, bio,
+  estadísticas y menú de sesión.
+- Pestañas: **Publicaciones** (pines + posts), **Me gusta** (likes del foro),
+  **Guardados** (pines/proyectos/posts) y **Biblioteca** (archivos de Drive
+  asignados al usuario en `libraryItems`).
+- Toda la actividad se filtra por el uid del usuario (`authorId`, `likedBy`,
+  `savedBy`, `ownerId`).
+- `EditProfilePage`: nombre, `@usuario`, bio y foto subida a Cloudinary.
+- El botón de sembrado de datos de prueba se movió al menú del Foro.
 
 Guía completa de conexión: `FIREBASE_SETUP.md`.

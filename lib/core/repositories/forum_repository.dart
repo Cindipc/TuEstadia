@@ -47,6 +47,46 @@ class ForumRepository {
     );
   }
 
+  /// Publicaciones creadas por el usuario.
+  Stream<List<ForumPostModel>> watchMyPosts(String uid) {
+    return _watchByField('authorId', uid, array: false);
+  }
+
+  /// Publicaciones a las que el usuario dio "me gusta".
+  Stream<List<ForumPostModel>> watchLikedPosts(String uid) {
+    return _watchByField('likedBy', uid, array: true);
+  }
+
+  /// Publicaciones guardadas por el usuario.
+  Stream<List<ForumPostModel>> watchSavedPosts(String uid) {
+    return _watchByField('savedBy', uid, array: true);
+  }
+
+  Stream<List<ForumPostModel>> _watchByField(
+    String field,
+    String uid, {
+    required bool array,
+  }) {
+    if (!FirebaseBootstrap.isAvailable) {
+      return Stream.value(const <ForumPostModel>[]);
+    }
+
+    final query = array
+        ? _collection.where(field, arrayContains: uid)
+        : _collection.where(field, isEqualTo: uid);
+
+    return withFallback(
+      query.snapshots().map((snapshot) {
+        final posts = snapshot.docs
+            .map(ForumPostModel.fromDoc)
+            .toList();
+        posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return posts;
+      }),
+      const <ForumPostModel>[],
+    );
+  }
+
   /// Publicaciones raíz (sin padre), de más reciente a más antigua.
   static List<ForumPostModel> rootPosts(List<ForumPostModel> all) {
     final roots = all.where((post) => post.isRoot).toList()

@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Origen del elemento del feed.
+enum ProjectSource { project, pin }
+
 /// Proyecto del feed (tarjeta de la grilla principal).
 class ProjectModel {
   const ProjectModel({
@@ -11,6 +14,10 @@ class ProjectModel {
     required this.authorAvatar,
     required this.saved,
     required this.createdAt,
+    this.authorId,
+    this.savedBy = const [],
+    this.source = ProjectSource.project,
+    this.description = '',
   });
 
   final String id;
@@ -19,8 +26,26 @@ class ProjectModel {
   final String imageUrl;
   final String authorName;
   final String authorAvatar;
+
+  /// Estado legacy (bool global). Se mantiene por compatibilidad.
   final bool saved;
+
   final DateTime createdAt;
+
+  /// uid del autor (para el perfil).
+  final String? authorId;
+
+  /// uids de quienes guardaron el elemento.
+  final List<String> savedBy;
+
+  /// Colección de origen: `projects` o `pins`.
+  final ProjectSource source;
+
+  final String description;
+
+  bool isSavedBy(String? uid) => uid != null && savedBy.contains(uid);
+
+  bool isOwnedBy(String? uid) => uid != null && authorId == uid;
 
   factory ProjectModel.fromMap(String id, Map<String, dynamic> map) {
     return ProjectModel(
@@ -32,6 +57,14 @@ class ProjectModel {
       authorAvatar: (map['authorAvatar'] as String?) ?? '',
       saved: (map['saved'] as bool?) ?? false,
       createdAt: _readDate(map['createdAt']),
+      authorId: (map['authorId'] as String?)?.trim().isEmpty ?? true
+          ? null
+          : map['authorId'] as String?,
+      savedBy: ((map['savedBy'] as List?) ?? const [])
+          .whereType<String>()
+          .toList(growable: false),
+      source: ProjectSource.project,
+      description: (map['description'] as String?) ?? '',
     );
   }
 
@@ -47,11 +80,18 @@ class ProjectModel {
       'authorName': authorName,
       'authorAvatar': authorAvatar,
       'saved': saved,
+      'savedBy': savedBy,
+      'authorId': authorId,
+      'description': description,
       'createdAt': createdAt,
     };
   }
 
-  ProjectModel copyWith({bool? saved}) {
+  ProjectModel copyWith({
+    bool? saved,
+    List<String>? savedBy,
+    bool? isSavedForView,
+  }) {
     return ProjectModel(
       id: id,
       title: title,
@@ -59,8 +99,20 @@ class ProjectModel {
       imageUrl: imageUrl,
       authorName: authorName,
       authorAvatar: authorAvatar,
-      saved: saved ?? this.saved,
+      saved: isSavedForView ?? saved ?? this.saved,
       createdAt: createdAt,
+      authorId: authorId,
+      savedBy: savedBy ?? this.savedBy,
+      source: source,
+      description: description,
+    );
+  }
+
+  /// Copia con el estado "guardado" resuelto para un usuario concreto.
+  ProjectModel forUser(String? uid) {
+    return copyWith(
+      savedBy: savedBy,
+      isSavedForView: isSavedBy(uid) || (savedBy.isEmpty && saved),
     );
   }
 

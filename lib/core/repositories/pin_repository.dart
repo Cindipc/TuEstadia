@@ -1,50 +1,28 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:http/http.dart' as http;
 
 import '../auth_service.dart';
+import '../firebase_bootstrap.dart';
 import '../models/pin.dart';
+import '../services/cloudinary_service.dart';
+import '../stream_utils.dart';
 
 class PinRepository {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  PinRepository({FirebaseFirestore? firestore}) : _injected = firestore;
 
-  // Cloudinary
-  static const String _cloudName = 'd2bwhqps';
-  static const String _uploadPreset = 'pins_unsigned';
+  static const String collectionName = 'pins';
+  static const String profilesCollection = 'profiles';
 
-  // Ajusta si tu colección de perfiles se llama distinto.
-  static const String _profilesCollection = 'users';
+  final FirebaseFirestore? _injected;
 
-  CollectionReference<Map<String, dynamic>> get _pins => _db.collection('pins');
+  /// Acceso perezoso: en modo demo nunca se instancia Firestore.
+  FirebaseFirestore get _db => _injected ?? FirebaseFirestore.instance;
 
-  /// Sube la imagen (bytes) a Cloudinary y devuelve su URL pública (https).
-  Future<String> _uploadImage(Uint8List bytes, String fileName) async {
-    final uri = Uri.parse(
-      'https://api.cloudinary.com/v1_1/$_cloudName/image/upload',
-    );
-    final request = http.MultipartRequest('POST', uri)
-      ..fields['upload_preset'] = _uploadPreset
-      ..files.add(
-        http.MultipartFile.fromBytes('file', bytes, filename: fileName),
-      );
+  CollectionReference<Map<String, dynamic>> get _pins =>
+      _db.collection(collectionName);
 
-    final streamed = await request.send().timeout(const Duration(seconds: 60));
-    final body = await streamed.stream.bytesToString();
-
-    if (streamed.statusCode != 200) {
-      throw Exception(
-        'No se pudo subir la imagen (${streamed.statusCode}): $body',
-      );
-    }
-    final url = (jsonDecode(body) as Map<String, dynamic>)['secure_url'];
-    if (url is! String || url.isEmpty) {
-      throw Exception('Respuesta inválida al subir la imagen');
-    }
-    return url;
-  }
-
+  /// Sube la imagen a Cloudinary y la guarda como pin del usuario actual.
   Future<void> createPin({
     required Uint8List imageBytes,
     required String fileName,
@@ -55,32 +33,40 @@ class PinRepository {
     final user = AuthService.currentUser;
     if (user == null) throw Exception('Debes iniciar sesión');
 
-    final url = await _uploadImage(imageBytes, fileName);
+    final upload = await CloudinaryService.uploadBytes(
+      bytes: imageBytes,
+      filename: fileName,
+    );
+    if (upload == null) {
+      throw Exception('No se pudo subir la imagen a Cloudinary');
+    }
 
     // 1) El pin es lo importante: si esto falla, se muestra el error.
     await _pins.add({
       'title': title.trim(),
       'description': description.trim(),
-      'imageUrl': url,
+      'imageUrl': upload.url,
       'tech': tech,
       'authorId': user.uid,
       'authorName': AuthService.displayName,
       'authorAvatar': AuthService.photoUrl ?? '',
+      'savedBy': <String>[],
       'createdAt': FieldValue.serverTimestamp(),
     });
 
     // 2) El contador es secundario: si las reglas no lo permiten, se ignora.
     try {
-      await _db.collection(_profilesCollection).doc(user.uid).set(
-        {'postsCount': FieldValue.increment(1)},
-        SetOptions(merge: true),
-      );
+      await _db.collection(profilesCollection).doc(user.uid).set({
+        'pinsCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
     } catch (_) {}
   }
 
   /// Un pin por id. Devuelve null si no existe (p. ej. un proyecto que no
   /// es un pin) o si no se pudo leer.
   Future<PinModel?> getPin(String id) async {
+    if (!FirebaseBootstrap.isAvailable) return null;
     try {
       final doc = await _pins.doc(id).get();
       if (!doc.exists) return null;
@@ -92,25 +78,73 @@ class PinRepository {
 
   /// Feed general: los pines más recientes.
   Stream<List<PinModel>> watchFeed() {
-    return _pins
-        .orderBy('createdAt', descending: true)
-        .limit(60)
-        .snapshots()
-        .map((s) => s.docs.map(PinModel.fromDoc).toList());
+    if (!FirebaseBootstrap.isAvailable) {
+      return Stream.value(const <PinModel>[]);
+    }
+    return withFallback(
+      _pins
+          .orderBy('createdAt', descending: true)
+          .limit(60)
+          .snapshots()
+          .map((s) => s.docs.map(PinModel.fromDoc).toList(growable: false)),
+      const <PinModel>[],
+    );
   }
 
   /// Pines creados por un usuario (para el perfil).
   /// Se ordena en la app para no necesitar un índice compuesto en Firestore.
   Stream<List<PinModel>> watchMyPins(String uid) {
-    return _pins.where('authorId', isEqualTo: uid).snapshots().map((s) {
-      final pins = s.docs.map(PinModel.fromDoc).toList();
-      // createdAt es null un instante mientras el servidor pone la fecha.
-      pins.sort((a, b) {
-        final da = a.createdAt ?? DateTime.now();
-        final db = b.createdAt ?? DateTime.now();
-        return db.compareTo(da);
+    if (!FirebaseBootstrap.isAvailable) {
+      return Stream.value(const <PinModel>[]);
+    }
+    return withFallback(
+      _pins.where('authorId', isEqualTo: uid).snapshots().map((s) {
+        final pins = s.docs.map(PinModel.fromDoc).toList();
+        _sortByDate(pins);
+        return pins;
+      }),
+      const <PinModel>[],
+    );
+  }
+
+  /// Pines guardados por un usuario (para "Guardados" del perfil).
+  Stream<List<PinModel>> watchSavedPins(String uid) {
+    if (!FirebaseBootstrap.isAvailable) {
+      return Stream.value(const <PinModel>[]);
+    }
+    return withFallback(
+      _pins.where('savedBy', arrayContains: uid).snapshots().map((s) {
+        final pins = s.docs.map(PinModel.fromDoc).toList();
+        _sortByDate(pins);
+        return pins;
+      }),
+      const <PinModel>[],
+    );
+  }
+
+  Future<bool> toggleSave({
+    required String pinId,
+    required String uid,
+    required bool currentlySaved,
+  }) async {
+    if (!FirebaseBootstrap.isAvailable) return false;
+    try {
+      await _pins.doc(pinId).update({
+        'savedBy': currentlySaved
+            ? FieldValue.arrayRemove([uid])
+            : FieldValue.arrayUnion([uid]),
       });
-      return pins;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static void _sortByDate(List<PinModel> pins) {
+    pins.sort((a, b) {
+      final da = a.createdAt ?? DateTime.now();
+      final db = b.createdAt ?? DateTime.now();
+      return db.compareTo(da);
     });
   }
 }

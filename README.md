@@ -14,7 +14,7 @@ TuEstadia es una app para aprender programación en comunidad, con un feed de pr
 | **Biblioteca** | Carrusel de cursos y línea de tiempo de capítulos (nodos + línea vertical con `CustomPainter`). |
 | **Foro de Dudas** | Estilo Twitter: hilos con respuestas, likes por usuario, imágenes/vídeos/GIF (Cloudinary), encuestas, búsqueda con pestañas, tendencias calculadas y borrado de publicaciones propias. |
 >>>>>>> Stashed changes
-| **Perfil** | Datos del usuario, estadísticas y cierre de sesión. |
+| **Perfil** | Cabecera estilo Twitter con portada personalizable, avatar, bio y estadísticas; pestañas **Publicaciones / Me gusta / Guardados / Biblioteca**; menú `⋮` con editar perfil y cerrar sesión; edición con foto y portada (Cloudinary). |
 
 Todas las pantallas usan el tema **Neo-Dark** (`#121826` / `#1E293B` / `#38BDF8` / `#34D399`).
 
@@ -44,7 +44,10 @@ lib/
     │   ├── forum_page.dart       # Recientes / Tendencias / Sin responder
     │   ├── screens/              # Composer, detalle, búsqueda, tendencias, filtros
     │   └── widgets/              # Tarjetas, media, encuesta, composer bar
-    ├── profile/profile_page.dart
+    ├── profile/
+    │   ├── profile_page.dart     # Perfil con 4 pestañas de actividad
+    │   ├── edit_profile_page.dart# Editar nombre, @usuario, bio y foto
+    │   └── widgets/              # Cabecera, selector y tile de biblioteca
     └── shell/main_shell.dart
 ```
 
@@ -97,35 +100,40 @@ Detalles y esquema de colecciones: [`FIREBASE_SETUP.md`](FIREBASE_SETUP.md) y
 La sección **Proyectos** de la Biblioteca lista, en modo solo lectura, el
 contenido de una carpeta pública de Google Drive mediante la API v3.
 
-La API key y el ID de la carpeta se leen en tiempo de compilación, nunca desde
-el código. Crea un `dart_defines.json` local (ya está en `.gitignore`) copiando
-`dart_defines.example.json` y rellena:
-
-```json
-{
-  "GOOGLE_DRIVE_API_KEY": "TU_API_KEY",
-  "GOOGLE_DRIVE_FOLDER_ID": "TU_FOLDER_ID"
-}
-```
-
-Después ejecuta la app con ese archivo:
+La API key y el ID de la carpeta se leen de un archivo **`.env`** en la raíz del
+proyecto (ya está en `.gitignore`). No hace falta pasar flags al ejecutar:
 
 ```bash
-flutter run --dart-define-from-file=dart_defines.json
+cp .env.example .env      # una vez
+# edita .env y rellena:
+# GOOGLE_DRIVE_API_KEY=TU_API_KEY
+# GOOGLE_DRIVE_FOLDER_ID=TU_FOLDER_ID
+
+flutter run               # sin --dart-define
 ```
 
-En VS Code también puedes usar la configuración **TuEstadia (con Google Drive)**
-del panel *Run and Debug*. Como alternativa, pasa los valores directo:
+Orden de prioridad de la configuración:
 
-```bash
-flutter run --dart-define=GOOGLE_DRIVE_API_KEY=TU_API_KEY --dart-define=GOOGLE_DRIVE_FOLDER_ID=TU_FOLDER_ID
-```
+1. `--dart-define=GOOGLE_DRIVE_API_KEY=...` (CI o builds explícitos).
+2. Asset `.env` empaquetado con la app.
+3. Archivo `.env` local en desktop/móvil (respaldo de desarrollo).
+
+También siguen funcionando `flutter run --dart-define-from-file=dart_defines.json`
+y la configuración **TuEstadia (con Google Drive)** de VS Code.
+
+> El `.env` se empaqueta dentro de la app y la key es visible para quien
+> inspeccione el binario: restríngela en Google Cloud (solo Google Drive API y
+> los orígenes/apps que uses).
 
 La carpeta debe ser accesible sin iniciar sesión: en Google Drive, clic derecho
 sobre la carpeta → **Compartir** → **Acceso general** → **Cualquier persona con
 el enlace** → **Lector**. Una API key por sí sola no da acceso a carpetas
 privadas. Además, la API de Google Drive debe estar habilitada en el proyecto de
 Google Cloud y la clave debe permitir la API de Drive.
+
+Cada archivo de la Biblioteca tiene un marcador para **añadirlo a tu perfil**
+(colección `libraryItems`), de modo que aparece en la pestaña **Biblioteca** del
+perfil.
 
 ## Comandos
 
