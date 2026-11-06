@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../app_theme.dart';
 import '../../core/auth_service.dart';
 import '../../core/firebase_bootstrap.dart';
+import '../../core/models/pin.dart';
 import '../../core/repositories/forum_repository.dart';
+import '../../core/repositories/pin_repository.dart';
 import '../../core/seed_service.dart';
 import '../../core/widgets/app_avatar.dart';
+import '../feed/widgets/project_card.dart';
+import '../pins/pin_detail_page.dart';
 
 /// Pantalla de perfil con datos de la sesión de Firebase y utilidades.
 class ProfilePage extends StatefulWidget {
@@ -19,8 +24,16 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   final ForumRepository _forumRepository = ForumRepository();
+  late final Stream<List<PinModel>>? _myPins;
 
   bool _seeding = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final uid = AuthService.currentUser?.uid;
+    _myPins = uid == null ? null : PinRepository().watchMyPins(uid);
+  }
 
   Future<void> _seedDemoData() async {
     if (_seeding) return;
@@ -95,6 +108,61 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  /// Sección "Mis pines": muestra carga, errores, vacío o la cuadrícula.
+    /// Sección "Mis pines": muestra carga, errores, vacío o la cuadrícula.
+  Widget _buildMyPins() {
+    final stream = _myPins;
+    if (stream == null) {
+      return const _PinsMessage('Inicia sesión para ver tus pines.');
+    }
+
+    return StreamBuilder<List<PinModel>>(
+      stream: stream,
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return _PinsMessage('No se pudieron cargar tus pines: ${snap.error}');
+        }
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColors.neoCyan),
+            ),
+          );
+        }
+
+        final pins = snap.data ?? const <PinModel>[];
+        if (pins.isEmpty) {
+          return const _PinsMessage(
+            'Aún no has creado pines. Toca el + del feed para crear el primero.',
+          );
+        }
+
+        // Cuadrícula tipo Pinterest, igual que el feed.
+        return MasonryGridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          itemCount: pins.length,
+          itemBuilder: (context, index) {
+            final project = pins[index].toProject();
+            return ProjectCard(
+              project: project,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => PinDetailPage(project: project),
+                ),
+              ),
+              onToggleSave: () {},
+            );
+          },
         );
       },
     );
@@ -179,6 +247,17 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildStats(),
             const SizedBox(height: 22),
             const Text(
+              'Mis pines',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            _buildMyPins(),
+            const SizedBox(height: 22),
+            const Text(
               'Conexión',
               style: TextStyle(
                 color: Colors.white,
@@ -227,6 +306,33 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PinsMessage extends StatelessWidget {
+  const _PinsMessage(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.neoSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.neoBorder),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: AppColors.neoTextMuted,
+          fontSize: 12.5,
+          height: 1.4,
         ),
       ),
     );
