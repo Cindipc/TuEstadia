@@ -8,6 +8,7 @@ import '../../core/models/pin.dart'; // NUEVO
 import '../../core/models/project.dart';
 import '../../core/repositories/pin_repository.dart'; // NUEVO
 import '../../core/repositories/project_repository.dart';
+import '../../core/utils/project_deletion.dart';
 import '../pins/create_pin_page.dart';
 import 'widgets/project_card.dart';
 import '../pins/pin_detail_page.dart';
@@ -165,6 +166,31 @@ class _HomePageState extends State<HomePage> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _confirmDelete(ProjectModel project) async {
+    final uid = AuthService.currentUser?.uid;
+    if (uid == null || !project.isOwnedBy(uid)) return;
+
+    final confirmed = await confirmDeletion(context);
+    if (!confirmed || !mounted) return;
+
+    final ok = await deleteProjectItem(
+      project: project,
+      pinRepository: _pinRepository,
+      projectRepository: _repository,
+    );
+    if (!mounted) return;
+
+    if (!ok) {
+      _showMessage(
+        FirebaseBootstrap.isAvailable
+            ? 'No se pudo eliminar. Revisa tu sesión y las reglas de Firestore.'
+            : 'Modo demo: no se puede eliminar.',
+      );
+      return;
+    }
+    _showMessage('Publicación eliminada');
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = AuthService.currentUser?.uid;
@@ -229,6 +255,9 @@ class _HomePageState extends State<HomePage> {
                           final project = projects[index];
                           return ProjectCard(
                             project: project,
+                            onDelete: project.isOwnedBy(uid)
+                                ? () => _confirmDelete(project)
+                                : null,
                            onTap: () => Navigator.of(context).push(
   MaterialPageRoute(builder: (_) => PinDetailPage(project: project)),
 ),

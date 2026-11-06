@@ -84,7 +84,10 @@ Credenciales generadas por FlutterFire CLI e integradas en
 Proyecto:  fwitter-7596d
 Web:       appId 1:855255390470:web:1c87c1dcd619da04d96687
 Windows:   appId 1:855255390470:web:79dabb59b77c379fd96687
-Android:   appId 1:855255390470:android:fd5485521ce5f320d96687
+Android:   appId 1:855255390470:android:459a1b5fa20f7be9d96687
+           (paquete io.github.cindipc.tuestadia)
+           SHA-1 debug: cd:6b:82:f8:4a:50:dd:66:9a:c6:65:11:88:d5:9b:b4:3c:dc:62:54
+           SHA-1 release: 40:20:ed:cd:61:29:fa:ea:1a:e4:ba:2e:50:11:6f:fb:da:e7:29:2b
 iOS/macOS: appId 1:855255390470:ios:0b9a70427a519a6cd96687
            (bundle registrado en la consola: com.example.fwitterReborn)
 ```

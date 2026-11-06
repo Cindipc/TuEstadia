@@ -1,0 +1,195 @@
+{
+  "project_info": {
+    "project_number": "855255390470",
+    "firebase_url": "https://fwitter-7596d-default-rtdb.firebaseio.com",
+    "project_id": "fwitter-7596d",
+    "storage_bucket": "fwitter-7596d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:855255390470:android:fd5485521ce5f320d96687",
+        "android_client_info": {
+          "package_name": "com.example.fwitter_reborn"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "855255390470-qit6vifl2o2o34235gfa9i1n1sn84lq8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_Q7QAp80AIWoxclHJFIJ0CTQOnp2Dsi0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "855255390470-qit6vifl2o2o34235gfa9i1n1sn84lq8.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "855255390470-t7he8rgoa7krv8e82ojpg0sg7sf1galg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fwitterReborn"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:855255390470:android:a5943a45aae0cabfd96687",
+        "android_client_info": {
+          "package_name": "com.example.tuestadia"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "855255390470-8p6gnel5fek2l5v5dffjm1elh51on66b.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tuestadia",
+            "certificate_hash": "4020edcd6129faea1ae4ba2e50116ffbdae7292b"
+          }
+        },
+        {
+          "client_id": "855255390470-gujlvch6v0odip3c4u03k40i2jelm5tv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.tuestadia",
+            "certificate_hash": "cd6b82f84a50dd669ac6651188d59bb43cdc6254"
+          }
+        },
+        {
+          "client_id": "855255390470-qit6vifl2o2o34235gfa9i1n1sn84lq8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_Q7QAp80AIWoxclHJFIJ0CTQOnp2Dsi0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "855255390470-qit6vifl2o2o34235gfa9i1n1sn84lq8.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "855255390470-t7he8rgoa7krv8e82ojpg0sg7sf1galg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fwitterReborn"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:855255390470:android:43d08141db098a4dd96687",
+        "android_client_info": {
+          "package_name": "com.thealphamerc.flutter_twitter_clone"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "855255390470-tpueujv4k1686648i5f23dq3c4tu9iin.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.thealphamerc.flutter_twitter_clone",
+            "certificate_hash": "cd6b82f84a50dd669ac6651188d59bb43cdc6254"
+          }
+        },
+        {
+          "client_id": "855255390470-qit6vifl2o2o34235gfa9i1n1sn84lq8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_Q7QAp80AIWoxclHJFIJ0CTQOnp2Dsi0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "855255390470-qit6vifl2o2o34235gfa9i1n1sn84lq8.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "855255390470-t7he8rgoa7krv8e82ojpg0sg7sf1galg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fwitterReborn"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:855255390470:android:459a1b5fa20f7be9d96687",
+        "android_client_info": {
+          "package_name": "io.github.cindipc.tuestadia"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "855255390470-b2ad6n81pm433qqd8oinaujjlcgltstr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.github.cindipc.tuestadia",
+            "certificate_hash": "4020edcd6129faea1ae4ba2e50116ffbdae7292b"
+          }
+        },
+        {
+          "client_id": "855255390470-tjd4er7ra5jgd2b2p05ms4cmr9boamcd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.github.cindipc.tuestadia",
+            "certificate_hash": "cd6b82f84a50dd669ac6651188d59bb43cdc6254"
+          }
+        },
+        {
+          "client_id": "855255390470-qit6vifl2o2o34235gfa9i1n1sn84lq8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_Q7QAp80AIWoxclHJFIJ0CTQOnp2Dsi0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "855255390470-qit6vifl2o2o34235gfa9i1n1sn84lq8.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "855255390470-t7he8rgoa7krv8e82ojpg0sg7sf1galg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.fwitterReborn"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

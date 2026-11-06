@@ -266,3 +266,9 @@ lib/
     │   └── widgets/                 # Cabecera, selector y tile de biblioteca
     └── shell/main_shell.dart      # Navegación inferior
 ```
+
+---
+
+## 8. Google Sign-In
+
+La configuración de Google está en [GOOGLE_SIGNIN_SETUP.md](GOOGLE_SIGNIN_SETUP.md).

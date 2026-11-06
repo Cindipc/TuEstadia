@@ -9,11 +9,15 @@ class ForumPostMenu extends StatelessWidget {
     required this.isOwner,
     required this.onCopyLink,
     required this.onDelete,
+    this.onReport,
+    this.onBlock,
   });
 
   final bool isOwner;
   final VoidCallback onCopyLink;
   final VoidCallback onDelete;
+  final VoidCallback? onReport;
+  final VoidCallback? onBlock;
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +35,10 @@ class ForumPostMenu extends StatelessWidget {
             onCopyLink();
           case _PostAction.delete:
             onDelete();
+          case _PostAction.report:
+            onReport?.call();
+          case _PostAction.block:
+            onBlock?.call();
         }
       },
       itemBuilder: (context) => [
@@ -67,9 +75,47 @@ class ForumPostMenu extends StatelessWidget {
               ],
             ),
           ),
+        if (!isOwner && onReport != null)
+          const PopupMenuItem(
+            value: _PostAction.report,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.flag_outlined,
+                  size: 18,
+                  color: AppColors.neoTextMuted,
+                ),
+                SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    'Reportar publicación',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (!isOwner && onBlock != null)
+          const PopupMenuItem(
+            value: _PostAction.block,
+            child: Row(
+              children: [
+                Icon(Icons.block_outlined, size: 18, color: AppColors.error),
+                SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    'Bloquear usuario',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: AppColors.error),
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }
 }
 
-enum _PostAction { copyLink, delete }
+enum _PostAction { copyLink, delete, report, block }

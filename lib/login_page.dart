@@ -1,12 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import 'app_theme.dart';
+import 'core/app_links.dart';
 import 'core/auth_error_messages.dart';
 import 'core/auth_service.dart';
 import 'core/firebase_bootstrap.dart';
 import 'features/auth/auth_ui.dart';
 import 'features/auth/register_page.dart';
+import 'features/auth/widgets/google_sign_in_button.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, this.onDemoMode});
@@ -30,7 +33,10 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordFocus = FocusNode();
 
   bool _isLoading = false;
+  bool _googleLoading = false;
   bool _obscurePassword = true;
+
+  bool get _busy => _isLoading || _googleLoading;
 
   @override
   void dispose() {
@@ -41,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _submit() async {
-    if (_isLoading) return;
+    if (_busy) return;
     final form = _formKey.currentState;
     if (form == null || !form.validate()) return;
 
@@ -77,17 +83,19 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _openRegister() async {
-    if (_isLoading) return;
+    if (_busy) return;
     FocusScope.of(context).unfocus();
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const RegisterPage()),
-    );
+    await Navigator.of(context)
+        .push(MaterialPageRoute<void>(builder: (_) => const RegisterPage()));
   }
 
   Future<void> _onForgotPassword() async {
+    if (_busy) return;
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      _showMessage('Escribe tu correo para enviarte el enlace de recuperación.');
+      _showMessage(
+        'Escribe tu correo para enviarte el enlace de recuperación.',
+      );
       return;
     }
     if (!_emailRegExp.hasMatch(email)) {
@@ -115,16 +123,42 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _onDemoPressed() {
-    if (_isLoading) return;
+    if (_busy) return;
     widget.onDemoMode?.call();
   }
 
-  void _onGooglePressed() {
-    if (_isLoading) return;
-    _showMessage(
-      'El inicio de sesión con Google requiere configurar el proveedor OAuth '
-      'en Firebase Authentication.',
-    );
+  Future<void> _onGooglePressed() async {
+    if (_busy) return;
+    if (!AuthService.isAvailable) {
+      _showMessage(
+        'Firebase no está configurado. Entra en modo demo para explorar la app.',
+      );
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
+    setState(() => _googleLoading = true);
+
+    try {
+      await AuthService.signInWithGoogle();
+      if (!mounted) return;
+      setState(() => _googleLoading = false);
+    } on GoogleSignInException catch (e) {
+      if (!mounted) return;
+      setState(() => _googleLoading = false);
+      // Cancelar el selector de cuentas no es un error que deba mostrarse.
+      if (e.code != GoogleSignInExceptionCode.canceled) {
+        _showMessage(googleSignInErrorMessage(e));
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _googleLoading = false);
+      _showMessage(authErrorMessage(e));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _googleLoading = false);
+      _showMessage('No se pudo iniciar sesión con Google: $e');
+    }
   }
 
   void _showMessage(String message) {
@@ -160,8 +194,10 @@ class _LoginPageState extends State<LoginPage> {
     final size = MediaQuery.sizeOf(context);
     final compact = size.height < 720;
     final horizontalPad = size.width < 360 ? 18.0 : 22.0;
-    final contentWidth =
-        (size.width - 16 - horizontalPad * 2).clamp(0.0, 460.0);
+    final contentWidth = (size.width - 16 - horizontalPad * 2).clamp(
+      0.0,
+      460.0,
+    );
     final titleSize = (contentWidth * 0.118).clamp(26.0, 44.0);
 
     final topPad = compact ? 20.0 : 28.0;
@@ -176,94 +212,83 @@ class _LoginPageState extends State<LoginPage> {
     final bottomPad = compact ? 14.0 : 20.0;
 
     return Scaffold(
-      backgroundColor: AppColors.exterior,
+      backgroundColor: AppColors.panelTop,
       resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [AppColors.panelTop, AppColors.panelBottom],
-              ),
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x1A000000),
-                  blurRadius: 24,
-                  offset: Offset(0, 8),
-                ),
-              ],
-            ),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Align(
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.panelTop, AppColors.panelBottom],
+          ),
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 460),
+                          child: Padding(
+                            padding: EdgeInsets.fromLTRB(
+                              horizontalPad,
+                              topPad,
+                              horizontalPad,
+                              0,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildHeader(),
+                                SizedBox(height: headerGap),
+                                _buildTitle(titleSize),
+                                SizedBox(height: titleGap),
+                                const Text(
+                                  'Únete a la comunidad de estudiantes de TI más grande.',
+                                  style: TextStyle(
+                                    color: AppColors.muted,
+                                    fontSize: 15,
+                                    height: 1.45,
+                                  ),
+                                ),
+                                SizedBox(height: descriptionGap),
+                                _buildForm(fieldGap, buttonGap),
+                                SizedBox(height: separatorGap),
+                                _buildSeparator(),
+                                SizedBox(height: googleGap),
+                                _buildGoogleButton(),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalPad,
+                          footerGap,
+                          horizontalPad,
+                          bottomPad,
+                        ),
+                        child: Align(
                           alignment: Alignment.topCenter,
                           child: ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 460),
-                            child: Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                horizontalPad,
-                                topPad,
-                                horizontalPad,
-                                0,
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildHeader(),
-                                  SizedBox(height: headerGap),
-                                  _buildTitle(titleSize),
-                                  SizedBox(height: titleGap),
-                                  const Text(
-                                    'Únete a la comunidad de estudiantes de TI más grande.',
-                                    style: TextStyle(
-                                      color: AppColors.muted,
-                                      fontSize: 15,
-                                      height: 1.45,
-                                    ),
-                                  ),
-                                  SizedBox(height: descriptionGap),
-                                  _buildForm(fieldGap, buttonGap),
-                                  SizedBox(height: separatorGap),
-                                  _buildSeparator(),
-                                  SizedBox(height: googleGap),
-                                  _buildGoogleButton(),
-                                ],
-                              ),
-                            ),
+                            child: _buildRegisterLink(),
                           ),
                         ),
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            horizontalPad,
-                            footerGap,
-                            horizontalPad,
-                            bottomPad,
-                          ),
-                          child: Align(
-                            alignment: Alignment.topCenter,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 460),
-                              child: _buildRegisterLink(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -329,30 +354,31 @@ class _LoginPageState extends State<LoginPage> {
             onFieldSubmitted: (_) => _submit(),
             style: const TextStyle(color: Colors.white, fontSize: 15),
             cursorColor: AppColors.cyan,
-            decoration: _fieldDecoration(
-              icon: Icons.lock_outline,
-              hint: 'Contraseña',
-            ).copyWith(
-              suffixIcon: IconButton(
-                tooltip: _obscurePassword
-                    ? 'Mostrar contraseña'
-                    : 'Ocultar contraseña',
-                icon: Icon(
-                  _obscurePassword
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                  size: 19,
-                  color: AppColors.placeholder,
+            decoration:
+                _fieldDecoration(
+                  icon: Icons.lock_outline,
+                  hint: 'Contraseña',
+                ).copyWith(
+                  suffixIcon: IconButton(
+                    tooltip: _obscurePassword
+                        ? 'Mostrar contraseña'
+                        : 'Ocultar contraseña',
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 19,
+                      color: AppColors.placeholder,
+                    ),
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                  ),
                 ),
-                onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-              ),
-            ),
           ),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: _isLoading ? null : _onForgotPassword,
+              onPressed: _busy ? null : _onForgotPassword,
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.placeholder,
                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -368,7 +394,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
           SizedBox(height: buttonGap),
           FilledButton(
-            onPressed: _isLoading ? null : _submit,
+            onPressed: _busy ? null : _submit,
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.cyan,
               disabledBackgroundColor: AppColors.cyan.withValues(alpha: 0.5),
@@ -432,26 +458,71 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildGoogleButton() {
-    return OutlinedButton(
-      onPressed: _onGooglePressed,
-      style: OutlinedButton.styleFrom(
-        backgroundColor: const Color(0xFF16243C),
-        foregroundColor: Colors.white,
-        side: const BorderSide(color: AppColors.fieldBorder, width: 1),
-        minimumSize: const Size.fromHeight(52),
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GoogleSignInButton(
+          loading: _googleLoading,
+          onPressed: _busy ? null : _onGooglePressed,
         ),
-        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(width: 20, height: 20, child: GoogleLogo()),
-          SizedBox(width: 10),
-          Text('Google'),
-        ],
+        const SizedBox(height: 8),
+        const Text(
+          'Si no tienes cuenta, se crea automáticamente.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.placeholder,
+            fontSize: 11.5,
+            height: 1.35,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const Text(
+              'Al continuar aceptas los ',
+              style: TextStyle(
+                color: AppColors.placeholder,
+                fontSize: 11.5,
+                height: 1.35,
+              ),
+            ),
+            _legalLink('términos', AppLinks.terms),
+            const Text(
+              ' y la ',
+              style: TextStyle(
+                color: AppColors.placeholder,
+                fontSize: 11.5,
+                height: 1.35,
+              ),
+            ),
+            _legalLink('política de privacidad', AppLinks.privacyPolicy),
+            const Text(
+              '.',
+              style: TextStyle(
+                color: AppColors.placeholder,
+                fontSize: 11.5,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _legalLink(String text, String url) {
+    return GestureDetector(
+      onTap: () => openAppLink(url),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: AppColors.cyan,
+          fontSize: 11.5,
+          height: 1.35,
+          decoration: TextDecoration.underline,
+        ),
       ),
     );
   }
@@ -464,7 +535,7 @@ class _LoginPageState extends State<LoginPage> {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(8),
-            onTap: _openRegister,
+            onTap: _busy ? null : _openRegister,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
               child: Text.rich(
@@ -492,7 +563,7 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
         TextButton(
-          onPressed: _onDemoPressed,
+          onPressed: _busy ? null : _onDemoPressed,
           style: TextButton.styleFrom(
             foregroundColor: AppColors.placeholder,
             textStyle: const TextStyle(
@@ -505,170 +576,4 @@ class _LoginPageState extends State<LoginPage> {
       ],
     );
   }
-}
-
-/// Icono oficial de la "G" de Google dibujado sin dependencias externas.
-class GoogleLogo extends StatelessWidget {
-  const GoogleLogo({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _GoogleLogoPainter(),
-      size: const Size.square(20),
-    );
-  }
-}
-
-class _GoogleLogoPainter extends CustomPainter {
-  static const _green = Color(0xFF34A853);
-  static const _yellow = Color(0xFFFBBC05);
-  static const _blue = Color(0xFF4285F4);
-  static const _red = Color(0xFFEA4335);
-
-  static const _greenPath =
-      'M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 '
-      '2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z';
-  static const _yellowPath =
-      'M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19'
-      'C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z';
-  static const _bluePath =
-      'M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 '
-      '5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z';
-  static const _redPath =
-      'M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 '
-      '14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z';
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final scale = size.shortestSide / 48;
-    canvas.save();
-    canvas.scale(scale, scale);
-
-    void draw(String data, Color color) {
-      canvas.drawPath(
-        _parseSvgPath(data),
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.fill,
-      );
-    }
-
-    draw(_greenPath, _green);
-    draw(_yellowPath, _yellow);
-    draw(_bluePath, _blue);
-    draw(_redPath, _red);
-
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _GoogleLogoPainter oldDelegate) => false;
-}
-
-Path _parseSvgPath(String source) {
-  final path = Path();
-  final tokens =
-      RegExp(r'[MmLlHhVvCcSsZz]|-?(?:\d+\.?\d*|\.\d+)')
-          .allMatches(source)
-          .map((match) => match.group(0)!)
-          .toList();
-
-  var index = 0;
-  double next() => double.parse(tokens[index++]);
-
-  String? command;
-  var currentX = 0.0;
-  var currentY = 0.0;
-  var startX = 0.0;
-  var startY = 0.0;
-  var controlX = 0.0;
-  var controlY = 0.0;
-  var hasControlPoint = false;
-
-  while (index < tokens.length) {
-    if (tokens[index].length == 1 && !RegExp(r'[0-9.\-]').hasMatch(tokens[index])) {
-      command = tokens[index];
-      index++;
-    }
-    if (command == null) break;
-
-    final relative = command == command.toLowerCase();
-    final upper = command.toUpperCase();
-
-    switch (upper) {
-      case 'M':
-        final x = next();
-        final y = next();
-        currentX = relative ? currentX + x : x;
-        currentY = relative ? currentY + y : y;
-        path.moveTo(currentX, currentY);
-        startX = currentX;
-        startY = currentY;
-        hasControlPoint = false;
-        command = relative ? 'l' : 'L';
-      case 'L':
-        final x = next();
-        final y = next();
-        currentX = relative ? currentX + x : x;
-        currentY = relative ? currentY + y : y;
-        path.lineTo(currentX, currentY);
-        hasControlPoint = false;
-      case 'H':
-        final x = next();
-        currentX = relative ? currentX + x : x;
-        path.lineTo(currentX, currentY);
-        hasControlPoint = false;
-      case 'V':
-        final y = next();
-        currentY = relative ? currentY + y : y;
-        path.lineTo(currentX, currentY);
-        hasControlPoint = false;
-      case 'C':
-        final x1 = next();
-        final y1 = next();
-        final x2 = next();
-        final y2 = next();
-        final x = next();
-        final y = next();
-        final c1x = relative ? currentX + x1 : x1;
-        final c1y = relative ? currentY + y1 : y1;
-        final c2x = relative ? currentX + x2 : x2;
-        final c2y = relative ? currentY + y2 : y2;
-        final endX = relative ? currentX + x : x;
-        final endY = relative ? currentY + y : y;
-        path.cubicTo(c1x, c1y, c2x, c2y, endX, endY);
-        controlX = c2x;
-        controlY = c2y;
-        currentX = endX;
-        currentY = endY;
-        hasControlPoint = true;
-      case 'S':
-        final x2 = next();
-        final y2 = next();
-        final x = next();
-        final y = next();
-        final c1x = hasControlPoint ? 2 * currentX - controlX : currentX;
-        final c1y = hasControlPoint ? 2 * currentY - controlY : currentY;
-        final c2x = relative ? currentX + x2 : x2;
-        final c2y = relative ? currentY + y2 : y2;
-        final endX = relative ? currentX + x : x;
-        final endY = relative ? currentY + y : y;
-        path.cubicTo(c1x, c1y, c2x, c2y, endX, endY);
-        controlX = c2x;
-        controlY = c2y;
-        currentX = endX;
-        currentY = endY;
-        hasControlPoint = true;
-      case 'Z':
-        path.close();
-        currentX = startX;
-        currentY = startY;
-        hasControlPoint = false;
-      default:
-        index++;
-    }
-  }
-
-  return path;
 }

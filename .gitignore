@@ -52,3 +52,14 @@ dart_defines.json
 .env
 .env.*
 !.env.example
+
+# Firma de Android (nunca subir al repositorio)
+android/key.properties
+android/app/*.jks
+android/app/*.keystore
+*.jks
+*.keystore
+
+# Firebase CLI
+.firebase/
+firebase-debug.log

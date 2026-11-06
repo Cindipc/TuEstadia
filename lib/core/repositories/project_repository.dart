@@ -71,6 +71,17 @@ class ProjectRepository {
     );
   }
 
+  /// Elimina un proyecto (las reglas solo lo permiten al autor).
+  Future<bool> deleteProject(String projectId) async {
+    if (!FirebaseBootstrap.isAvailable) return false;
+    try {
+      await _collection.doc(projectId).delete();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Crea un proyecto nuevo.
   Future<bool> create({
     required String title,

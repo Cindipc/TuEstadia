@@ -12,12 +12,16 @@ class ProjectCard extends StatelessWidget {
     required this.project,
     required this.onTap,
     required this.onToggleSave,
+    this.onDelete,
     this.imageHeight,
   });
 
   final ProjectModel project;
   final VoidCallback onTap;
   final VoidCallback onToggleSave;
+
+  /// Solo se pasa cuando el proyecto pertenece al usuario actual.
+  final VoidCallback? onDelete;
 
   /// Altura de la imagen. Si es null, se elige una variada de forma estable
   /// a partir del título para lograr el efecto de cascada.
@@ -63,6 +67,13 @@ class ProjectCard extends StatelessWidget {
                     onPressed: onToggleSave,
                   ),
                 ),
+                // Eliminar solo en publicaciones propias.
+                if (onDelete != null)
+                  Positioned(
+                    top: 8,
+                    left: 8,
+                    child: _DeleteButton(onDelete: onDelete!),
+                  ),
               ],
             ),
             Padding(
@@ -191,6 +202,49 @@ class _BookmarkButton extends StatelessWidget {
             color: saved ? AppColors.neoEmerald : Colors.white,
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DeleteButton extends StatelessWidget {
+  const _DeleteButton({required this.onDelete});
+
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: 'Más opciones',
+      color: AppColors.neoSurface,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 170),
+      onSelected: (_) => onDelete(),
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+              SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  'Eliminar',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: AppColors.error),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.all(7),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.5),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.more_horiz, size: 19, color: Colors.white),
       ),
     );
   }

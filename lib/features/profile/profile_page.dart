@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../app_theme.dart';
+import '../../core/app_links.dart';
+import '../../core/auth_error_messages.dart';
 import '../../core/auth_service.dart';
 import '../../core/firebase_bootstrap.dart';
 import '../../core/models/forum_post.dart';
@@ -17,6 +20,7 @@ import '../../core/repositories/project_repository.dart';
 import '../../core/repositories/user_library_repository.dart';
 import '../../core/services/profile_service.dart';
 import '../../core/utils/forum_interactions.dart';
+import '../../core/utils/project_deletion.dart';
 import '../feed/widgets/project_card.dart';
 import '../forum/widgets/forum_empty_state.dart';
 import '../forum/widgets/forum_post_list.dart';
@@ -107,7 +111,11 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     _listen('profile', _profileService.watch(uid), (value) => _profile = value);
-    _listen('myPins', _pinRepository.watchMyPins(uid), (value) => _myPins = value);
+    _listen(
+      'myPins',
+      _pinRepository.watchMyPins(uid),
+      (value) => _myPins = value,
+    );
     _listen(
       'savedPins',
       _pinRepository.watchSavedPins(uid),
@@ -193,15 +201,120 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final updated = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => EditProfilePage(
-          initial: initial,
-          service: _profileService,
-        ),
+        builder: (_) =>
+            EditProfilePage(initial: initial, service: _profileService),
       ),
     );
     if (updated == true && mounted) {
       _showMessage('Perfil actualizado');
     }
+  }
+
+  Future<void> _openLegalLink(String url) async {
+    final opened = await openAppLink(url);
+    if (!mounted || opened) return;
+    _showMessage('No se pudo abrir el enlace.');
+  }
+
+  Future<void> _confirmDeleteAccount() async {
+    if (_uid == null) {
+      _showMessage('Inicia sesión para eliminar tu cuenta.');
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.neoSurface,
+        title: const Text(
+          'Eliminar mi cuenta',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Se eliminarán de forma permanente tu perfil, publicaciones, pines, '
+          'proyectos, biblioteca e interacciones. Esta acción no se puede '
+          'deshacer.',
+          style: TextStyle(color: AppColors.neoTextMuted, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final user = AuthService.currentUser;
+    final needsPassword =
+        user?.providerData.any(
+          (provider) => provider.providerId == 'password',
+        ) ??
+        false;
+
+    String? password;
+    if (needsPassword) {
+      password = await _askPasswordForDeletion();
+      if (password == null || !mounted) return;
+    }
+
+    try {
+      await AuthService.deleteAccount(password: password);
+      if (!mounted) return;
+      widget.onLogout?.call();
+      _showMessage('Tu cuenta fue eliminada.');
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      _showMessage(authErrorMessage(e));
+    } catch (e) {
+      if (!mounted) return;
+      _showMessage('No se pudo eliminar la cuenta: $e');
+    }
+  }
+
+  Future<String?> _askPasswordForDeletion() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.neoSurface,
+        title: const Text(
+          'Confirma tu contraseña',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: TextField(
+          controller: controller,
+          obscureText: true,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          cursorColor: AppColors.neoCyan,
+          decoration: const InputDecoration(
+            hintText: 'Contraseña actual',
+            hintStyle: TextStyle(color: AppColors.neoTextMuted),
+          ),
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
+    return (result == null || result.isEmpty) ? null : result;
   }
 
   Future<void> _togglePinSave(PinModel pin) async {
@@ -267,6 +380,31 @@ class _ProfilePageState extends State<ProfilePage> {
     _showMessage('No se pudo quitar de tu biblioteca.');
   }
 
+  Future<void> _confirmDeleteProject(ProjectModel project) async {
+    final uid = _uid;
+    if (uid == null || !project.isOwnedBy(uid)) return;
+
+    final confirmed = await confirmDeletion(context);
+    if (!confirmed || !mounted) return;
+
+    final ok = await deleteProjectItem(
+      project: project,
+      pinRepository: _pinRepository,
+      projectRepository: _projectRepository,
+    );
+    if (!mounted) return;
+
+    if (!ok) {
+      _showMessage(
+        FirebaseBootstrap.isAvailable
+            ? 'No se pudo eliminar. Revisa tu sesión y las reglas.'
+            : 'Modo demo: no se puede eliminar.',
+      );
+      return;
+    }
+    _showMessage('Publicación eliminada');
+  }
+
   // ── UI ───────────────────────────────────────────────────────────────────
 
   @override
@@ -299,6 +437,12 @@ class _ProfilePageState extends State<ProfilePage> {
                 switch (value) {
                   case 'edit':
                     _openEdit();
+                  case 'privacy':
+                    _openLegalLink(AppLinks.privacyPolicy);
+                  case 'terms':
+                    _openLegalLink(AppLinks.terms);
+                  case 'delete':
+                    _confirmDeleteAccount();
                   case 'logout':
                     widget.onLogout?.call();
                 }
@@ -319,6 +463,66 @@ class _ProfilePageState extends State<ProfilePage> {
                           'Editar perfil',
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'privacy',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.privacy_tip_outlined,
+                        size: 18,
+                        color: AppColors.neoTextMuted,
+                      ),
+                      SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          'Privacidad',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'terms',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.description_outlined,
+                        size: 18,
+                        color: AppColors.neoTextMuted,
+                      ),
+                      SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          'Términos',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.person_off_outlined,
+                        size: 18,
+                        color: AppColors.error,
+                      ),
+                      SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          'Eliminar cuenta',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: AppColors.error),
                         ),
                       ),
                     ],
@@ -442,8 +646,7 @@ class _ProfilePageState extends State<ProfilePage> {
               : _buildPostsList(
                   _myPosts,
                   emptyTitle: 'Aún no has publicado en el foro',
-                  emptyMessage:
-                      'Pregunta tus dudas desde la pestaña Foro y aparecerán aquí.',
+                  emptyMessage: 'Pregunta tus dudas desde la pestaña Foro y aparecerán aquí.',
                 ),
         ),
       ],
@@ -510,8 +713,7 @@ class _ProfilePageState extends State<ProfilePage> {
       return const _EmptyTab(
         icon: Icons.folder_open,
         title: 'Tu biblioteca está vacía',
-        message:
-            'Abre la pestaña Biblioteca y añade archivos a tu perfil con el marcador.',
+        message: 'Abre la pestaña Biblioteca y añade archivos a tu perfil con el marcador.',
       );
     }
 
@@ -582,10 +784,11 @@ class _ProfilePageState extends State<ProfilePage> {
         return ProjectCard(
           project: project,
           imageHeight: 150,
+          onDelete: project.isOwnedBy(_uid)
+              ? () => _confirmDeleteProject(project)
+              : null,
           onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => PinDetailPage(project: project),
-            ),
+            MaterialPageRoute(builder: (_) => PinDetailPage(project: project)),
           ),
           onToggleSave: () {
             if (project.source == ProjectSource.pin) {
