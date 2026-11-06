@@ -3,9 +3,13 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 
 import '../../app_theme.dart';
 import '../../core/firebase_bootstrap.dart';
+import '../../core/models/pin.dart'; // NUEVO
 import '../../core/models/project.dart';
+import '../../core/repositories/pin_repository.dart'; // NUEVO
 import '../../core/repositories/project_repository.dart';
+import '../pins/create_pin_page.dart';
 import 'widgets/project_card.dart';
+import '../pins/pin_detail_page.dart';
 
 /// Pantalla principal "Home - Feed".
 class HomePage extends StatefulWidget {
@@ -34,6 +38,7 @@ class _HomePageState extends State<HomePage> {
   final TextEditingController _searchController = TextEditingController();
   late final ProjectRepository _repository;
   late final Stream<List<ProjectModel>> _projects;
+  late final Stream<List<PinModel>> _pins; // NUEVO
 
   String _selectedCategory = allCategory;
   String _searchTerm = '';
@@ -44,6 +49,10 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _repository = widget.repository ?? ProjectRepository();
     _projects = _repository.watchProjects();
+    // NUEVO: en modo demo (sin Firebase) no se consulta Firestore.
+    _pins = FirebaseBootstrap.isAvailable
+        ? PinRepository().watchFeed()
+        : Stream.value(const <PinModel>[]);
   }
 
   @override
@@ -157,6 +166,14 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.neoBackground,
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.neoCyan,
+        foregroundColor: Colors.black,
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const CreatePinPage()),
+        ),
+        child: const Icon(Icons.add),
+      ),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -175,46 +192,61 @@ class _HomePageState extends State<HomePage> {
                     );
                   }
 
-                  final projects = _applyFilters(
-                    snapshot.data ?? const <ProjectModel>[],
-                  );
+                  // NUEVO: segundo stream con los pines creados por usuarios.
+                  return StreamBuilder<List<PinModel>>(
+                    stream: _pins,
+                    builder: (context, pinSnapshot) {
+                      final pinProjects = (pinSnapshot.data ??
+                              const <PinModel>[])
+                          .map((pin) => pin.toProject());
 
-                  if (projects.isEmpty) {
-                    return _EmptyState(onReset: _resetFilters);
-                  }
+                      final projects = _applyFilters([
+                        ...(snapshot.data ?? const <ProjectModel>[]),
+                        ...pinProjects,
+                      ]);
 
-                  // Grid tipo Pinterest: columnas con alturas distintas.
-                  return MasonryGridView.builder(
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-                    physics: const BouncingScrollPhysics(),
-                    gridDelegate:
-                        const SliverSimpleGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                        ),
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    itemCount: projects.length,
-                    itemBuilder: (context, index) {
-                      final project = projects[index];
-                      return ProjectCard(
-                        project: project,
-                        onTap: () => _showMessage(project.title),
-                        onToggleSave: () async {
-                          final saved = await _repository.toggleSave(project);
-                          if (!context.mounted) return;
-                          if (!saved) {
-                            _showMessage(
-                              FirebaseBootstrap.isAvailable
-                                  ? 'No se pudo guardar. Revisa tu sesión y las '
-                                        'reglas de Firestore.'
-                                  : 'Modo demo: los cambios no se guardan.',
-                            );
-                            return;
-                          }
-                          _showMessage(
-                            project.saved
-                                ? 'Quitado de guardados'
-                                : 'Guardado en tu biblioteca',
+                      if (projects.isEmpty) {
+                        return _EmptyState(onReset: _resetFilters);
+                      }
+
+                      // Grid tipo Pinterest: columnas con alturas distintas.
+                      return MasonryGridView.builder(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+                        physics: const BouncingScrollPhysics(),
+                        gridDelegate:
+                            const SliverSimpleGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                            ),
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        itemCount: projects.length,
+                        itemBuilder: (context, index) {
+                          final project = projects[index];
+                          return ProjectCard(
+                            project: project,
+                           onTap: () => Navigator.of(context).push(
+  MaterialPageRoute(builder: (_) => PinDetailPage(project: project)),
+),
+                            onToggleSave: () async {
+                              final saved = await _repository.toggleSave(
+                                project,
+                              );
+                              if (!context.mounted) return;
+                              if (!saved) {
+                                _showMessage(
+                                  FirebaseBootstrap.isAvailable
+                                      ? 'No se pudo guardar. Revisa tu sesión y las '
+                                            'reglas de Firestore.'
+                                      : 'Modo demo: los cambios no se guardan.',
+                                );
+                                return;
+                              }
+                              _showMessage(
+                                project.saved
+                                    ? 'Quitado de guardados'
+                                    : 'Guardado en tu biblioteca',
+                              );
+                            },
                           );
                         },
                       );
