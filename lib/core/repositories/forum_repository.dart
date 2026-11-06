@@ -1,6 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 
-import '../demo_data.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../firebase_bootstrap.dart';
 import '../models/forum_media.dart';
 import '../models/forum_poll.dart';
@@ -30,21 +32,106 @@ class ForumRepository {
       _firestore.collection(collectionName);
 
   /// Flujo con todas las publicaciones (raíces y respuestas).
+  ///
+  /// Si Firestore no está disponible o falla, devuelve una lista vacía para
+  /// que la UI muestre su estado vacío en lugar de publicaciones de ejemplo.
+  /// También escucha los bloqueos del usuario para ocultar a esos autores en
+  /// todas las pantallas del foro.
   Stream<List<ForumPostModel>> watchPosts() {
     if (!FirebaseBootstrap.isAvailable) {
-      return Stream.value(DemoData.posts);
+      return Stream.value(const <ForumPostModel>[]);
     }
-    return withDemoFallback(
-      _collection
+
+    late StreamController<List<ForumPostModel>> controller;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? postsSubscription;
+    StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? blocksSubscription;
+    var posts = const <ForumPostModel>[];
+    var blocked = const <String>{};
+
+    void emit() {
+      if (controller.isClosed) return;
+      controller.add(
+        posts
+            .where((post) => !blocked.contains(post.authorId))
+            .toList(growable: false),
+      );
+    }
+
+    Future<void> start() async {
+      postsSubscription = _collection
           .orderBy('createdAt', descending: true)
           .snapshots()
-          .map(
-            (snapshot) => snapshot.docs
+          .listen((snapshot) {
+            posts = snapshot.docs
                 .map(ForumPostModel.fromDoc)
-                .toList(growable: false),
-          ),
-      DemoData.posts,
+                .toList(growable: false);
+            emit();
+          }, onError: (_) => emit());
+
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        blocksSubscription = _firestore
+            .collection('blocks')
+            .where('ownerId', isEqualTo: uid)
+            .snapshots()
+            .listen((snapshot) {
+              blocked = snapshot.docs
+                  .map((doc) => doc.data()['blockedId'])
+                  .whereType<String>()
+                  .where((id) => id.isNotEmpty)
+                  .toSet();
+              emit();
+            }, onError: (_) {});
+      }
+    }
+
+    controller = StreamController<List<ForumPostModel>>(
+      onListen: start,
+      onCancel: () async {
+        await postsSubscription?.cancel();
+        await blocksSubscription?.cancel();
+      },
     );
+    return controller.stream;
+  }
+
+  /// Guarda un reporte para que el equipo moderador lo revise.
+  Future<bool> reportPost({
+    required String postId,
+    required String reporterId,
+    required String reason,
+  }) async {
+    if (!FirebaseBootstrap.isAvailable) return false;
+    try {
+      await _firestore.collection('reports').add({
+        'postId': postId,
+        'reporterId': reporterId,
+        'reason': reason,
+        'status': 'open',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Oculta las publicaciones de [blockedId] para [ownerId].
+  Future<bool> blockUser({
+    required String ownerId,
+    required String blockedId,
+  }) async {
+    if (!FirebaseBootstrap.isAvailable || ownerId == blockedId) return false;
+    try {
+      await _firestore.collection('blocks').doc('${ownerId}_$blockedId').set({
+        'ownerId': ownerId,
+        'blockedId': blockedId,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Publicaciones creadas por el usuario.
@@ -77,9 +164,7 @@ class ForumRepository {
 
     return withFallback(
       query.snapshots().map((snapshot) {
-        final posts = snapshot.docs
-            .map(ForumPostModel.fromDoc)
-            .toList();
+        final posts = snapshot.docs.map(ForumPostModel.fromDoc).toList();
         posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
         return posts;
       }),
@@ -99,9 +184,7 @@ class ForumRepository {
     List<ForumPostModel> all,
     String parentId,
   ) {
-    final replies = all
-        .where((post) => post.parentPostId == parentId)
-        .toList()
+    final replies = all.where((post) => post.parentPostId == parentId).toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
     return replies;
   }
@@ -178,14 +261,10 @@ class ForumRepository {
             : FieldValue.arrayUnion([uid]),
         'saved': !saved,
       });
-      batch.set(
-        _firestore.collection(profilesCollection).doc(uid),
-        {
-          'savedCount': FieldValue.increment(saved ? -1 : 1),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(_firestore.collection(profilesCollection).doc(uid), {
+        'savedCount': FieldValue.increment(saved ? -1 : 1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
       await batch.commit();
       return true;
     } catch (_) {
@@ -309,14 +388,14 @@ class ForumRepository {
     if (!FirebaseBootstrap.isAvailable) return null;
     try {
       final ref = _collection.doc(postId);
-      return await _firestore.runTransaction<ForumPollModel?>((transaction) async {
+      return await _firestore.runTransaction<ForumPollModel?>((
+        transaction,
+      ) async {
         final snapshot = await transaction.get(ref);
         final rawPoll = snapshot.data()?['poll'];
         if (rawPoll is! Map) return null;
 
-        final poll = ForumPollModel.fromMap(
-          Map<String, dynamic>.from(rawPoll),
-        );
+        final poll = ForumPollModel.fromMap(Map<String, dynamic>.from(rawPoll));
         final updated = poll.vote(optionId, uid);
         transaction.update(ref, {'poll': updated.toMap()});
         return updated;

@@ -1,4 +1,4 @@
-package com.example.tuestadia
+package io.github.cindipc.tuestadia
 
 import io.flutter.embedding.android.FlutterActivity
 

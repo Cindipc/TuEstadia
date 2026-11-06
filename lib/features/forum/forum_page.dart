@@ -6,7 +6,6 @@ import '../../app_theme.dart';
 import '../../core/auth_service.dart';
 import '../../core/models/forum_post.dart';
 import '../../core/repositories/forum_repository.dart';
-import '../../core/seed_service.dart';
 import '../../core/utils/forum_interactions.dart';
 import '../../core/widgets/app_avatar.dart';
 import 'screens/compose_post_page.dart';
@@ -55,8 +54,7 @@ class _ForumPageState extends State<ForumPage> {
 
   List<ForumPostModel> get _roots => ForumRepository.rootPosts(_all);
 
-  Map<String, int> get _replyCounts =>
-      ForumRepository.replyCountsOf(_all);
+  Map<String, int> get _replyCounts => ForumRepository.replyCountsOf(_all);
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
@@ -89,12 +87,6 @@ class _ForumPageState extends State<ForumPage> {
         builder: (_) => ForumTrendsPage(repository: _repository),
       ),
     );
-  }
-
-  Future<void> _seedDemoData() async {
-    final result = await SeedService.seedDemoData();
-    if (!mounted) return;
-    _showMessage(result.message ?? 'Listo');
   }
 
   @override
@@ -138,36 +130,36 @@ class _ForumPageState extends State<ForumPage> {
               tooltip: 'Tendencias',
               onPressed: _openTrends,
             ),
-            PopupMenuButton<String>(
-              tooltip: 'Más opciones',
-              color: AppColors.neoSurface,
-              icon: const Icon(Icons.more_vert),
-              onSelected: (value) {
-                if (value == 'seed') _seedDemoData();
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'seed',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.upload_file,
-                        size: 18,
-                        color: AppColors.neoTextMuted,
-                      ),
-                      SizedBox(width: 10),
-                      Flexible(
-                        child: Text(
-                          'Cargar datos de prueba',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            // PopupMenuButton<String>(
+            //   tooltip: 'Más opciones',
+            //   color: AppColors.neoSurface,
+            //   icon: const Icon(Icons.more_vert),
+            //   onSelected: (value) {
+            //     if (value == 'seed') _seedDemoData();
+            //   },
+            //   itemBuilder: (context) => [
+            //     const PopupMenuItem(
+            //       value: 'seed',
+            //       child: Row(
+            //         children: [
+            //           Icon(
+            //             Icons.upload_file,
+            //             size: 18,
+            //             color: AppColors.neoTextMuted,
+            //           ),
+            //           SizedBox(width: 10),
+            //           Flexible(
+            //             child: Text(
+            //               'Cargar datos de prueba',
+            //               overflow: TextOverflow.ellipsis,
+            //               style: TextStyle(color: Colors.white),
+            //             ),
+            //           ),
+            //         ],
+            //       ),
+            //     ),
+            //   ],
+            // ),
             const SizedBox(width: 6),
           ],
           bottom: const TabBar(
@@ -200,9 +192,8 @@ class _ForumPageState extends State<ForumPage> {
                       replyCounts: counts,
                       emptyState: ForumEmptyState(
                         icon: Icons.forum_outlined,
-                        title: 'Todavía no hay preguntas',
-                        message:
-                            'Pulsa el botón de escribir para crear la primera.',
+                        title: 'No hay publicaciones recientes',
+                        message: 'Sé el primero en publicar en el foro.',
                         actionLabel: 'Crear publicación',
                         onAction: _openCompose,
                       ),
@@ -227,8 +218,7 @@ class _ForumPageState extends State<ForumPage> {
                       emptyState: const ForumEmptyState(
                         icon: Icons.check_circle_outline,
                         title: '¡Todo respondido!',
-                        message:
-                            'No hay preguntas pendientes de respuesta ahora mismo.',
+                        message: 'No hay preguntas pendientes de respuesta ahora mismo.',
                       ),
                     ),
                   ],

@@ -21,6 +21,8 @@ class ForumPostCard extends StatelessWidget {
     this.showReplyAction = true,
     this.onDelete,
     this.onCopyLink,
+    this.onReport,
+    this.onBlock,
     this.onVote,
     this.votingPoll = false,
   });
@@ -42,6 +44,10 @@ class ForumPostCard extends StatelessWidget {
   /// Eliminar (solo se muestra si el post es del usuario actual).
   final VoidCallback? onDelete;
   final VoidCallback? onCopyLink;
+
+  /// Moderación de contenido de otros usuarios.
+  final VoidCallback? onReport;
+  final VoidCallback? onBlock;
 
   /// Votar en la encuesta.
   final ValueChanged<String>? onVote;
@@ -157,6 +163,8 @@ class ForumPostCard extends StatelessWidget {
           isOwner: isOwner && onDelete != null,
           onCopyLink: onCopyLink ?? () {},
           onDelete: onDelete ?? () {},
+          onReport: onReport,
+          onBlock: onBlock,
         ),
       ],
     );

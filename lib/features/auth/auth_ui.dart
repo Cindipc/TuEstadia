@@ -52,27 +52,22 @@ InputDecoration authFieldDecoration({
 Widget authBrandHeader() {
   return Row(
     children: [
-      SizedBox(
-        width: 34,
-        height: 34,
-        child: Stack(
-          alignment: Alignment.center,
-          children: const [
-            Icon(Icons.hexagon, size: 34, color: AppColors.cyan),
-            Icon(Icons.code_rounded, size: 16, color: AppColors.panelDeep),
-          ],
-        ),
+      Image.asset(
+        'assets/images/tu_estadia_logo.png',
+        height: 32,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
       ),
       const SizedBox(width: 10),
-      const Text(
-        'TuEstadia',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 21,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.2,
-        ),
-      ),
+      // const Text(
+      //   'TuEstadia',
+      //   style: TextStyle(
+      //     color: Colors.white,
+      //     fontSize: 21,
+      //     fontWeight: FontWeight.w700,
+      //     letterSpacing: 0.2,
+      //   ),
+      // ),
     ],
   );
 }
@@ -92,27 +87,5 @@ ButtonStyle authPrimaryButtonStyle() {
       fontWeight: FontWeight.w700,
       letterSpacing: 0.2,
     ),
-  );
-}
-
-/// Contenedor con el degradado de fondo del panel de autenticación.
-Widget authPanelBackground({required Widget child}) {
-  return DecoratedBox(
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [AppColors.panelTop, AppColors.panelBottom],
-      ),
-      borderRadius: BorderRadius.circular(28),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x1A000000),
-          blurRadius: 24,
-          offset: Offset(0, 8),
-        ),
-      ],
-    ),
-    child: child,
   );
 }

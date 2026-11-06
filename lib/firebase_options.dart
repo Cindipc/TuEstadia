@@ -53,7 +53,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyB_Q7QAp80AIWoxclHJFIJ0CTQOnp2Dsi0',
-    appId: '1:855255390470:android:fd5485521ce5f320d96687',
+    appId: '1:855255390470:android:459a1b5fa20f7be9d96687',
     messagingSenderId: '855255390470',
     projectId: 'fwitter-7596d',
     databaseURL: 'https://fwitter-7596d-default-rtdb.firebaseio.com',

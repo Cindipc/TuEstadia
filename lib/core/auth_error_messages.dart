@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 /// Traduce los errores de Firebase Auth a mensajes en español.
 ///
@@ -32,5 +33,29 @@ String authErrorMessage(FirebaseAuthException e) {
       return 'No hay una sesión activa.';
     default:
       return e.message ?? 'Ocurrió un error inesperado.';
+  }
+}
+
+/// Traduce los errores del SDK de Google Sign-In a mensajes en español.
+String googleSignInErrorMessage(GoogleSignInException e) {
+  switch (e.code) {
+    case GoogleSignInExceptionCode.canceled:
+      return 'Inicio de sesión con Google cancelado.';
+    case GoogleSignInExceptionCode.clientConfigurationError:
+      return 'Google Sign-In no está bien configurado. Revisa que el paquete '
+          'Android y el SHA-1 coincidan con la app registrada en Firebase.';
+    case GoogleSignInExceptionCode.providerConfigurationError:
+      return 'El inicio de sesión con Google no está disponible en esta '
+          'plataforma.';
+    case GoogleSignInExceptionCode.uiUnavailable:
+      return 'No se pudo abrir el selector de cuentas de Google. Inténtalo de '
+          'nuevo.';
+    case GoogleSignInExceptionCode.interrupted:
+      return 'El inicio de sesión con Google se interrumpió. Inténtalo de '
+          'nuevo.';
+    case GoogleSignInExceptionCode.userMismatch:
+      return 'La cuenta de Google no coincide con la sesión actual.';
+    default:
+      return e.description ?? 'No se pudo iniciar sesión con Google.';
   }
 }

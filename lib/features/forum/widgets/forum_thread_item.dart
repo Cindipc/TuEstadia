@@ -23,6 +23,8 @@ class ForumThreadItem extends StatelessWidget {
     this.avatarSize = 38,
     this.onDelete,
     this.onCopyLink,
+    this.onReport,
+    this.onBlock,
     this.onVote,
     this.votingPoll = false,
   });
@@ -39,6 +41,8 @@ class ForumThreadItem extends StatelessWidget {
   final double avatarSize;
   final VoidCallback? onDelete;
   final VoidCallback? onCopyLink;
+  final VoidCallback? onReport;
+  final VoidCallback? onBlock;
   final ValueChanged<String>? onVote;
   final bool votingPoll;
 
@@ -86,6 +90,8 @@ class ForumThreadItem extends StatelessWidget {
             showReplyAction: showReplyAction,
             onDelete: onDelete,
             onCopyLink: onCopyLink,
+            onReport: onReport,
+            onBlock: onBlock,
             onVote: onVote,
             votingPoll: votingPoll,
           ),

@@ -140,6 +140,17 @@ class PinRepository {
     }
   }
 
+  /// Elimina un pin (las reglas solo lo permiten al autor).
+  Future<bool> deletePin(String pinId) async {
+    if (!FirebaseBootstrap.isAvailable) return false;
+    try {
+      await _pins.doc(pinId).delete();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static void _sortByDate(List<PinModel> pins) {
     pins.sort((a, b) {
       final da = a.createdAt ?? DateTime.now();

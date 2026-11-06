@@ -36,6 +36,7 @@ class ForumPostList extends StatefulWidget {
 
 class _ForumPostListState extends State<ForumPostList> {
   final Map<String, ForumPostModel> _pending = {};
+  final Set<String> _blockedAuthors = {};
   String? _votingPostId;
 
   @override
@@ -183,6 +184,114 @@ class _ForumPostListState extends State<ForumPostList> {
     _showMessage('Publicación eliminada');
   }
 
+  Future<void> _reportPost(ForumPostModel post) async {
+    final uid = widget.currentUserId;
+    if (uid == null) {
+      _showMessage('Inicia sesión para reportar una publicación.');
+      return;
+    }
+
+    const reasons = [
+      'Spam o publicidad',
+      'Acoso o bullying',
+      'Contenido inapropiado',
+      'Información falsa',
+      'Otro',
+    ];
+    final reason = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.neoSurface,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                '¿Por qué reportas esta publicación?',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            for (final item in reasons)
+              ListTile(
+                title: Text(item, style: const TextStyle(color: Colors.white)),
+                onTap: () => Navigator.of(context).pop(item),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (reason == null || !mounted) return;
+
+    final ok = await widget.repository.reportPost(
+      postId: post.id,
+      reporterId: uid,
+      reason: reason,
+    );
+    if (!mounted) return;
+    _showMessage(
+      ok
+          ? 'Gracias. Revisaremos el contenido reportado.'
+          : 'No se pudo enviar el reporte. Inténtalo de nuevo.',
+    );
+  }
+
+  Future<void> _blockAuthor(ForumPostModel post) async {
+    final uid = widget.currentUserId;
+    final authorId = post.authorId;
+    if (uid == null) {
+      _showMessage('Inicia sesión para bloquear usuarios.');
+      return;
+    }
+    if (authorId == null || authorId.isEmpty) {
+      _showMessage('No se pudo identificar al autor.');
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.neoSurface,
+        title: const Text(
+          'Bloquear usuario',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          '¿Quieres dejar de ver las publicaciones de ${post.authorName}?',
+          style: const TextStyle(color: AppColors.neoTextMuted, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Bloquear'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final ok = await widget.repository.blockUser(
+      ownerId: uid,
+      blockedId: authorId,
+    );
+    if (!mounted) return;
+    if (!ok) {
+      _showMessage('No se pudo bloquear al usuario.');
+      return;
+    }
+    setState(() => _blockedAuthors.add(authorId));
+    _showMessage('Usuario bloqueado.');
+  }
+
   void _copyLink(ForumPostModel post) {
     Clipboard.setData(
       ClipboardData(text: 'https://tuestadia.app/foro/${post.id}'),
@@ -193,14 +302,19 @@ class _ForumPostListState extends State<ForumPostList> {
   void _openThread(ForumPostModel post) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => PostDetailPage(post: post, repository: widget.repository),
+        builder: (_) =>
+            PostDetailPage(post: post, repository: widget.repository),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.posts.isEmpty) {
+    final posts = widget.posts
+        .where((post) => !_blockedAuthors.contains(post.authorId))
+        .toList(growable: false);
+
+    if (posts.isEmpty) {
       return widget.emptyState ??
           const ForumEmptyState(
             icon: Icons.forum_outlined,
@@ -212,15 +326,17 @@ class _ForumPostListState extends State<ForumPostList> {
     return ListView.separated(
       padding: widget.padding,
       physics: const BouncingScrollPhysics(),
-      itemCount: widget.posts.length,
+      itemCount: posts.length,
       separatorBuilder: (_, _) => const SizedBox(height: 14),
       itemBuilder: (context, index) {
-        final post = _visible(widget.posts[index]);
+        final post = _visible(posts[index]);
         final uid = widget.currentUserId;
+        final isOwner = post.isOwnedBy(uid);
+        final canModerate = uid != null && !isOwner;
 
         return ForumThreadItem(
           post: post,
-          isLast: index == widget.posts.length - 1,
+          isLast: index == posts.length - 1,
           currentUserId: uid,
           replyCount: widget.replyCounts[post.id] ?? post.replies,
           votingPoll: _votingPostId == post.id,
@@ -228,8 +344,10 @@ class _ForumPostListState extends State<ForumPostList> {
           onSave: () => _toggleSave(post),
           onReply: () => _openThread(post),
           onTap: () => _openThread(post),
-          onDelete: post.isOwnedBy(uid) ? () => _confirmDelete(post) : null,
+          onDelete: isOwner ? () => _confirmDelete(post) : null,
           onCopyLink: () => _copyLink(post),
+          onReport: canModerate ? () => _reportPost(post) : null,
+          onBlock: canModerate ? () => _blockAuthor(post) : null,
           onVote: (optionId) => _vote(post, optionId),
         );
       },

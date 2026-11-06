@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../app_theme.dart';
+import '../../core/auth_service.dart';
 import '../../core/models/pin.dart';
 import '../../core/models/project.dart';
 import '../../core/repositories/pin_repository.dart';
+import '../../core/repositories/project_repository.dart';
+import '../../core/utils/project_deletion.dart';
 import '../../core/widgets/app_avatar.dart';
 
 /// Detalle de un pin (estilo Pinterest): imagen grande, autor, título y
@@ -25,6 +28,33 @@ class _PinDetailPageState extends State<PinDetailPage> {
     super.initState();
     // La descripción solo existe en el documento del pin.
     _pinFuture = PinRepository().getPin(widget.project.id);
+  }
+
+  Future<void> _delete() async {
+    final confirmed = await confirmDeletion(context);
+    if (!confirmed || !mounted) return;
+
+    final ok = await deleteProjectItem(
+      project: widget.project,
+      pinRepository: PinRepository(),
+      projectRepository: ProjectRepository(),
+    );
+    if (!mounted) return;
+
+    if (!ok) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No se pudo eliminar. Revisa tu sesión y las reglas.',
+            ),
+          ),
+        );
+      return;
+    }
+
+    Navigator.of(context).pop();
   }
 
   @override
@@ -49,6 +79,25 @@ class _PinDetailPageState extends State<PinDetailPage> {
             ),
           ),
         ),
+        actions: [
+          if (project.isOwnedBy(AuthService.currentUser?.uid))
+            Padding(
+              padding: const EdgeInsets.all(6),
+              child: Material(
+                color: Colors.black.withValues(alpha: 0.5),
+                shape: const CircleBorder(),
+                child: IconButton(
+                  tooltip: 'Eliminar publicación',
+                  onPressed: _delete,
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: ListView(
         padding: EdgeInsets.zero,

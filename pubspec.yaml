@@ -44,9 +44,11 @@ dependencies:
   firebase_core: ^5.0.0
   cloud_firestore: ^7.1.0
   firebase_auth: ^7.0.0
+  google_sign_in: ^7.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.14.4
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -62,6 +64,7 @@ dev_dependencies:
 flutter:
   assets:
     - .env
+    - assets/images/
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
@@ -98,3 +101,27 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Genera los iconos de la app para todas las plataformas a partir del logo.
+# Ejecutar con: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/images/app_icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#151C2C"
+  adaptive_icon_foreground: "assets/images/app_icon_foreground.png"
+  adaptive_icon_foreground_inset: 0
+  web:
+    generate: true
+    image_path: "assets/images/app_icon.png"
+    background_color: "#151C2C"
+    theme_color: "#22D3EE"
+  windows:
+    generate: true
+    image_path: "assets/images/app_icon.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/images/app_icon.png"
